@@ -7,13 +7,12 @@
 // NtOpenProcess
 typedef NTSTATUS (NTAPI* pNtOpenProcess)
 (
-    PHANDLE ProcessHandle,
-    ACCESS_MASK DesiredAccess,
-    POBJECT_ATTRIBUTES ObjectAttributes,
-    PCLIENT_ID ClientId
+    PHANDLE ProcessHandle, 
+    ACCESS_MASK DesiredAccess, 
+    POBJECT_ATTRIBUTES ObjectAttributes, 
+    PCLIENT_ID ClientId 
 );
 
-// I want to explain in but just go read to documentation :p
 
 // NtClose
 
@@ -26,8 +25,9 @@ typedef NTSTATUS (NTAPI* pNtClose)
 
 typedef NTSTATUS(NTAPI* pNtQuerySystemInformation)
 (
-    SYSTEM_INFORMATION_CLASS systemInformationClass, // It specify what information were going to retrieve
-    PVOID SystemInformation, // defining a pointer to use 
-    ULONG SystemInformationLength, // just the size of the buffer
-    PULONG ReturnLength // this is a parameter that get the actual size of the data returned 
+    SYSTEM_INFORMATION_CLASS systemInformationClass, 
+    PVOID SystemInformation, 
+    ULONG SystemInformationLength, 
+    PULONG ReturnLength 
 );
+
