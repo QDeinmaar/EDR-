@@ -12,3 +12,22 @@ typedef NTSTATUS (NTAPI* pNtOpenProcess)
     POBJECT_ATTRIBUTES objectAttributes,
     PCLIENT_ID clientId
 );
+
+// I want to explain in but just go read to documentation :p
+
+// NtClose
+
+typedef NTSTATUS (NTAPI* pNTClose)
+(
+    HANDLE handle
+);
+
+// NtQuerySystemInformation
+
+typedef NTSTATUS(NTAPI* pNtQuerySystemInformation)
+(
+    SYSTEM_INFORMATION_CLASS systemInformationClass,
+    PVOID SystemInformation,
+    ULONG SystemInformationLength,
+    PULONG ReturnLenght
+);
