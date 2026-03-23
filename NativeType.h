@@ -112,3 +112,19 @@ typedef NTSTATUS (NTAPI* pNtCreateThreadEx)
     _In_ SIZE_T MaximumStackSize,
     _In_opt_ PPS_ATTRIBUTE_LIST AtrributeList
 );
+
+/* 
+this well help to detect when a process creates a thread in another process -- it can be for a kkey step for attackers to
+                            for code injection or stealthy injection
+*/
+
+// NtResumeThread
+
+typedef NTSTATUS (NTAPI* pNtResumeThread)
+(
+    _In_ HANDLE ThreadHandle,
+    _Out_opt_ PULONG PreviousSuspendCount
+);
+
+// This will help to detect when a thread is being resumed in another process , wich can mean injected or hidden malicous code
+// Optionally alert or block  on suspious resume to prevent the malware from doing damage
