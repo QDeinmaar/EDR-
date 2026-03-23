@@ -4,6 +4,9 @@
 
 // i created this file to declare typedefs here cleaner code ;)
 
+
+//  ====== Process Operations ======
+
 // NtOpenProcess
 typedef NTSTATUS (NTAPI* pNtOpenProcess)
 (
@@ -31,3 +34,26 @@ typedef NTSTATUS(NTAPI* pNtQuerySystemInformation)
     PULONG ReturnLength 
 );
 
+
+// ====== Memory Operations ======
+
+// NtWriteVirtualMemory
+
+typedef NTSTATUS (NTAPI* pNtWriteVirtualMemory)
+(
+    HANDLE ProcessHandle,
+    PVOID BaseAddress,
+    _In_reads_bytes_(NumberOfBytesToWrite) PVOID buffer,
+    SIZE_T NumberOfBytesToWrite,
+    PSIZE_T NumberOfBytesWritten
+);
+
+// M using this to detect if one process is writting in another Process's memory
+
+// NtProtectVirtualMemory
+
+typedef NTSTATUS (NTAPI* pNtProtectVirtualMemory)
+(
+    HANDLE ProcessHandle,
+    
+);
