@@ -36,6 +36,23 @@ typedef NTSTATUS (NTAPI* pNtCreateProcess)
 
 // This will help me see hidden or suspicious process creation -- it might be malware spawning hidden process
 
+// NtCreateUserProcess
+
+typedef NTSTATUS (NTAPI* pNtCreateUserProcess)
+(
+    _Out_ PHANDLE ProcessHandle,
+    _Out_ PHANDLE ThreadHandle,
+    _In_ ACCESS_MASK ProcessDesiredAccess,
+    _In_ ACCESS_MASK ThreadDesiredAccess,
+    _In_opt_ PCOBJECT_ATTRIBUTES ProcessObjectAttributes,
+    _In_opt_ PCOBJECT_ATTRIBUTES ThreadObjectAttributes,
+    _In_ ULONG ProcessFlags, // PROCESS_CREATE_FLAGS_*
+    _In_ ULONG ThreadFlags, // THREAD_CREATE_FLAGS_*
+    _In_opt_ PRTL_USER_PROCESS_PARAMETERS ProcessParameters,
+    _Inout_ PPS_CREATE_INFO CreateInfo,
+    _In_opt_ PPS_ATTRIBUTE_LIST AttributeList
+);
+
 // NtTerminateProcess
 
 typedef NTSTATUS (NTAPI* pNtTerminateProcess)
