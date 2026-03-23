@@ -20,9 +20,9 @@ typedef NTSTATUS (NTAPI* pNtOpenProcess)
     _In_opt_ PCLIENT_ID ClientId 
 );
 
-// NtCreateProcess
+// NtCreateProcessEx
 
-typedef NTSTATUS (NTAPI* pNtCreateProcess)
+typedef NTSTATUS (NTAPI* pNtCreateProcessEx)
 (
     _Out_ PHANDLE ProcessHandle,
     _In_ ACCESS_MASK DesireAccess,
