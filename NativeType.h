@@ -1,6 +1,10 @@
 #pragma once
 #include <windows.h>
 #include <winternl.h>
+#include <winnt.h>
+#include <ntdef.h>
+
+#include "Workers.h"
 
 // i created this file to declare typedefs here cleaner code ;)
 
@@ -89,3 +93,22 @@ typedef NTSTATUS (NTAPI* pNtReadVirtualMemory)
 );
 
 // this well help us detect when a process is reading memory from another process -- can be a theft or data extraction  
+
+// Threads Operations
+
+// NtCreate Threads
+
+typedef NTSTATUS (NTAPI* pNtCreateThreads)
+(
+    _Out_ PHANDLE ThreadHandle,
+    _In_ ACCESS_MASK DesiredAcces,
+    _In_opt_ PCOBJECT_ATTRIBUTES ObjectAtrributes,
+    _In_ HANDLE ProcessHandle,
+    _In_ PUSER_THREAD_START_ROUTINE StartRoutine,
+    _In_opt_ PVOID Argument,
+    _In_ ULONG CreateFlags, // These Flags are defined as THREAD_CREATE_FLAGS_*
+    _In_ SIZE_T ZeroBites,
+    _In_ SIZE_T StackSize,
+    _In_ SIZE_T MaximumStackSize,
+    _In_opt_ PPS_ATTRIBUTE_LIST AtrributeList
+);
