@@ -20,6 +20,33 @@ typedef NTSTATUS (NTAPI* pNtOpenProcess)
     _In_opt_ PCLIENT_ID ClientId 
 );
 
+// NtCreateProcess
+
+typedef NTSTATUS (NTAPI* pNtCreateProcess)
+(
+    _Out_ PHANDLE ProcessHandle,
+    _In_ ACCESS_MASK DesireAccess,
+    _In_opt_ PCOBJECT_ATTRIBUTES ObjectAttributes,
+    _In_ HANDLE ParentProcess,
+    _In_ BOOLEAN InheritObjectTable,
+    _In_opt_ HANDLE SectionHandle,
+    _In_opt_ HANDLE DebugPort,
+    _In_opt_ HANDLE TokenHandle
+);
+
+// This will help me see hidden or suspicious process creation -- it might be malware spawning hidden process
+
+// NtTerminateProcess
+
+typedef NTSTATUS (NTAPI* pNtTerminateProcess)
+(
+    _In_opt_ HANDLE ProcessHandle,
+    _In_ NTSTATUS ExitStatus
+);
+
+// this will help detect or block attempts to kill processes, often used by malware to disable security tools
+
+// ====== Handel Management ======
 
 // NtClose
 
@@ -27,6 +54,8 @@ typedef NTSTATUS (NTAPI* pNtClose)
 (
     _In_ _Post_ptr_invalid_ HANDLE Handle
 );
+
+// ====== System Information ======
 
 // NtQuerySystemInformation
 
@@ -107,14 +136,14 @@ typedef NTSTATUS (NTAPI* pNtCreateThreadEx)
     _In_ PUSER_THREAD_START_ROUTINE StartRoutine,
     _In_opt_ PVOID Argument,
     _In_ ULONG CreateFlags, // These Flags are defined as THREAD_CREATE_FLAGS_*
-    _In_ SIZE_T ZeroBites,
+    _In_ SIZE_T ZeroBits,
     _In_ SIZE_T StackSize,
     _In_ SIZE_T MaximumStackSize,
-    _In_opt_ PPS_ATTRIBUTE_LIST AtrributeList
+    _In_opt_ PPS_ATTRIBUTE_LIST AttrributeList
 );
 
 /* 
-this well help to detect when a process creates a thread in another process -- it can be for a kkey step for attackers to
+this well help to detect when a process creates a thread in another process -- it can be for a key step for attackers to
                             for code injection or stealthy injection
 */
 
@@ -128,3 +157,19 @@ typedef NTSTATUS (NTAPI* pNtResumeThread)
 
 // This will help to detect when a thread is being resumed in another process , wich can mean injected or hidden malicous code
 // Optionally alert or block  on suspious resume to prevent the malware from doing damage
+
+// ====== Registry =======
+
+// NtSetValueKey
+
+typedef NTSTATUS (NTAPI* pNtSetValueKey)
+(
+    _In_ HANDLE KeyHandle,
+    _In_ PCUNICODE_STRING ValueName,
+    _In_opt_ ULONG TitleName,
+    _In_ ULONG Type,
+    _In_reads_bytes_opt_(DataSize) PVOID Data,
+    _In_ ULONG DataSize
+);
+
+// It can detect or clock suspicious registry changes , it s often used by malwares for persistence
