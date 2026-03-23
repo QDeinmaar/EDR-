@@ -94,11 +94,11 @@ typedef NTSTATUS (NTAPI* pNtReadVirtualMemory)
 
 // this well help us detect when a process is reading memory from another process -- can be a theft or data extraction  
 
-// Threads Operations
+//  ====== Threads Operations ======
 
-// NtCreate Threads
+// NtCreateThreadEx
 
-typedef NTSTATUS (NTAPI* pNtCreateThreads)
+typedef NTSTATUS (NTAPI* pNtCreateThreadEx)
 (
     _Out_ PHANDLE ThreadHandle,
     _In_ ACCESS_MASK DesiredAcces,
