@@ -7,9 +7,11 @@ class NativeAPI {
     static NativeAPI& Instance(); // Singleton access
     bool IsInitialized() const;
 
+    bool CloseHandle(HANDLE handle);
+
+    // Adding HANDLES
+
     HANDLE OpenProcess(DWORD processId, ACCESS_MASK desiredAccess);
-
-
 
     private:
         NativeAPI();

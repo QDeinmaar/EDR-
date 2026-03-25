@@ -27,3 +27,28 @@ HANDLE NativeAPI::OpenProcess(DWORD processid, ACCESS_MASK DesiredAccess)
 
     return hProcess;
 }
+
+bool NativeAPI::CloseHandle(HANDLE handle)
+{
+    if(!IsInitialized())
+    {
+        SetLastError(ERROR_NOT_READY);
+        return false;
+    }
+
+    if(!handle || handle == INVALID_HANDLE_VALUE)
+    {
+        SetLastError(ERROR_INVALID_HANDLE);
+        return false;
+    }
+
+    NTSTATUS status = m_NtClose(handle);
+
+    if(!NT_SUCCESS(status))
+    {
+        SetLastError(RtlNtStatusToDosError(status));
+        return false;
+    }
+
+    return true;
+}
