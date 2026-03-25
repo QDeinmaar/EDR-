@@ -14,6 +14,8 @@ class NativeAPI {
         NativeAPI(const NativeAPI&) = delete;
         NativeAPI& operator=(const NativeAPI&) = delete;
 
+        bool Initialize();
+
         // Function pointers to all our typedefs
         pNtOpenProcess m_NtOpenProcess;
         pNtCreateProcessEx m_NtCreateProcessEx;
