@@ -57,6 +57,38 @@ bool NativeAPI::Initialize()
     m_NtCreateProcessEx = (pNtCreateProcessEx)GetProcAddress(m_hNtdll, "NtCreateProcessEx");
     if(!m_NtCreateProcessEx) return false;
 
+    m_NtCreateUserProcess = (pNtCreateUserProcess)GetProcAddress(m_hNtdll, "NtCreateUserProcess");
+    if(!m_NtCreateUserProcess) return false;
 
+    m_NtTerminateProcess = (pNtTerminateProcess)GetProcAddress(m_hNtdll, "NtTerminateProcess");
+    if(!m_NtTerminateProcess) return false;
 
-}
+    m_NtQuerySystemInformation = (pNtQuerySystemInformation)GetProcAddress(m_hNtdll, "NtQueryStystemInformation");
+    if(!m_NtQuerySystemInformation) return false;
+
+    m_NtWriteVirtualMemory = (pNtWriteVirtualMemory)GetProcAddress(m_hNtdll, "NtWriteVirtualMemory");
+    if(!m_NtWriteVirtualMemory) return false;
+
+     m_NtProtectVirtualMemory = (pNtProtectVirtualMemory)GetProcAddress(m_hNtdll, "NtProtectVirtualMemory");
+    if (!m_NtProtectVirtualMemory) return false;
+
+    m_NtAllocateVirtualMemory = (pNtAllocateVirtualMemory)GetProcAddress(m_hNtdll, "NtAllocateVirtualMemory");
+    if (!m_NtAllocateVirtualMemory) return false;
+
+    m_NtReadVirtualMemory = (pNtReadVirtualMemory)GetProcAddress(m_hNtdll, "NtReadVirtualMemory");
+    if (!m_NtReadVirtualMemory) return false;
+
+    m_NtCreateThreadEx = (pNtCreateThreadEx)GetProcAddress(m_hNtdll, "NtCreateThreadEx");
+    if (!m_NtCreateThreadEx) return false;
+
+    m_NtResumeThread = (pNtResumeThread)GetProcAddress(m_hNtdll, "NtResumeThread");
+    if (!m_NtResumeThread) return false;
+
+    m_NtSetValueKey = (pNtSetValueKey)GetProcAddress(m_hNtdll, "NtSetValueKey");
+    if (!m_NtSetValueKey) return false;
+
+    m_initialized = true;
+    return true;
+}    
+    
+
