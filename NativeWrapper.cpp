@@ -2,7 +2,7 @@
 
 HANDLE NativeAPI::OpenProcess(DWORD processid, ACCESS_MASK DesiredAccess)
 {
-    if(!IsInitialized)
+    if(!IsInitialized())
     {
         SetLastError(ERROR_NOT_READY);
         return nullptr;
@@ -10,9 +10,20 @@ HANDLE NativeAPI::OpenProcess(DWORD processid, ACCESS_MASK DesiredAccess)
 
     HANDLE hProcess = nullptr;
     CLIENT_ID clientid;
-    POBJECT_ATTRIBUTES ObjectAttributes;
+    OBJECT_ATTRIBUTES objectAttributes;
 
-    clientid.UniqueProcess = UlongToHandle(processid);
+    clientid.UniqueProcess = ULongToHandle(processid);
     clientid.UniqueThread = nullptr;
 
+    InitializeObjectAttributes(&objectAttributes, nullptr, 0, nullptr,  nullptr);
+
+    NTSTATUS status = m_NtOpenProcess(&hProcess,DesiredAccess, &objectAttributes, &clientid);
+
+    if(!NT_SUCCESS(status))
+    {
+        SetLastError(RtlNtStatusToDosError(status)); // // Convert the error to Win32 byt using (RtlNtStatusToDosError) and store it 
+        return nullptr;
+    }
+
+    return hProcess;
 }
