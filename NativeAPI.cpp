@@ -51,7 +51,7 @@ bool NativeAPI::Initialize()
     m_NtOpenProcess = (pNtOpenProcess)GetProcAddress(m_hNtdll, "NtOpenProcess");
     if (!m_NtOpenProcess) return false;
 
-    m_NtClose = (pNtClose)GetProcAddress(m_hNtdll, "NtCloseProcess");
+    m_NtClose = (pNtClose)GetProcAddress(m_hNtdll, "NtClose");
     if(!m_NtClose) return false;
 
     m_NtCreateProcessEx = (pNtCreateProcessEx)GetProcAddress(m_hNtdll, "NtCreateProcessEx");
@@ -63,7 +63,7 @@ bool NativeAPI::Initialize()
     m_NtTerminateProcess = (pNtTerminateProcess)GetProcAddress(m_hNtdll, "NtTerminateProcess");
     if(!m_NtTerminateProcess) return false;
 
-    m_NtQuerySystemInformation = (pNtQuerySystemInformation)GetProcAddress(m_hNtdll, "NtQueryStystemInformation");
+    m_NtQuerySystemInformation = (pNtQuerySystemInformation)GetProcAddress(m_hNtdll, "NtQuerySystemInformation");
     if(!m_NtQuerySystemInformation) return false;
 
     m_NtWriteVirtualMemory = (pNtWriteVirtualMemory)GetProcAddress(m_hNtdll, "NtWriteVirtualMemory");
@@ -89,6 +89,11 @@ bool NativeAPI::Initialize()
 
     m_initialized = true;
     return true;
-}    
+}   
+
+bool NativeAPI::IsInitialized() const
+{
+    return m_initialized;
+}
     
 

@@ -5,6 +5,11 @@
 class NativeAPI {
     public:
     static NativeAPI& Instance(); // Singleton access
+    bool IsInitialized() const;
+
+    HANDLE OpenProcess(DWORD processId, ACCESS_MASK desiredAccess);
+
+
 
     private:
         NativeAPI();
