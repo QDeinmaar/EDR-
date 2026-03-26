@@ -125,6 +125,10 @@ bool NativeAPI::Initialize()
     if (!m_NtQueryInformationProcess) { printf("FAILED: NtQueryInformationProcess\n"); return false; }
     printf("OK: NtQueryInformationProcess\n");
 
+    m_RtlInitUnicodeString = (pRtlInitUnicodeString)GetProcAddress(m_hNtdll, "RtlInitUnicodeString");
+    if (!m_RtlInitUnicodeString) { printf("FAILED: RtLInitUnicodeString\n"); return false; }
+    printf("OK: RtLInitUnicodeString\n");
+
     m_initialized = true;
     printf("ALL FUNCTIONS LOADED SUCCESSFULLY!\n");
     return true;

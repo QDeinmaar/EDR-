@@ -197,3 +197,10 @@ typedef NTSTATUS (NTAPI* pNtSetValueKey)
 );
 
 // It can detect or clock suspicious registry changes , it s often used by malwares for persistence
+
+typedef VOID (NTAPI* pRtlInitUnicodeString)(
+    PUNICODE_STRING DestinationString,
+    PCWSTR SourceString
+);
+
+// this is just to Initialize a UNICODE String

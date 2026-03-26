@@ -96,6 +96,8 @@ class NativeAPI {
 
         EventCallback m_callback;
 
+        pRtlInitUnicodeString m_RtlInitUnicodeString; // for string convenrsion
+
         // Handle and state
         HMODULE m_hNtdll;
         bool m_initialized;
