@@ -7,6 +7,8 @@ class NativeAPI {
     static NativeAPI& Instance(); // Singleton access
     bool IsInitialized() const;
 
+    // public methods 
+
     bool CloseHandle(HANDLE handle);
 
     NTSTATUS WriteVirtualMemory(
@@ -15,6 +17,14 @@ class NativeAPI {
     PVOID buffer,
     SIZE_T bufferSize,
     PSIZE_T bytesWritten);
+    
+    NTSTATUS CreateThreadEx(
+        PHANDLE threadHandle,
+        ACCESS_MASK desiredAddress,
+        HANDLE processHandle,
+        PVOID startAddress,
+        PVOID parameter,
+        ULONG createFlags);
 
     // Adding HANDLES
 

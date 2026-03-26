@@ -54,6 +54,7 @@ bool NativeAPI::CloseHandle(HANDLE handle)
     return true;
 }
 
+
 NTSTATUS NativeAPI::WriteVirtualMemory(
     HANDLE processHandle,
     PVOID baseAddress,
@@ -86,3 +87,41 @@ NTSTATUS NativeAPI::WriteVirtualMemory(
 
     return status;
 }
+
+NTSTATUS NativeAPI::CreateThreadEx(
+    PHANDLE threadHandle,
+    ACCESS_MASK desiredAccess,
+    HANDLE processHandle,
+    PVOID startAddress,
+    PVOID parameter,
+    ULONG createFlags)
+{
+    if(!IsInitialized())
+    {
+        return STATUS_NOT_IMPLEMENTED;
+    }
+
+    if(!threadHandle || !processHandle || processHandle == INVALID_HANDLE_VALUE)
+    {
+        return STATUS_INVALID_PARAMETER;
+    }
+
+    PUSER_THREAD_START_ROUTINE startRoutine = (PUSER_THREAD_START_ROUTINE)startAddress; // Cast to do function pointer type
+
+    NTSTATUS status = m_NtCreateThreadEx(
+        threadHandle,
+        desiredAccess,
+        nullptr,
+        processHandle,
+        startRoutine,
+        parameter,
+        createFlags,
+        0,
+        0,
+        0,
+        nullptr
+    );
+
+        return status;
+}
+
