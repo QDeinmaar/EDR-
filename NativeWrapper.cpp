@@ -1,4 +1,5 @@
 #include "NativeAPI.h"
+#include <ntstatus.h>
 
 HANDLE NativeAPI::OpenProcess(DWORD processid, ACCESS_MASK DesiredAccess)
 {
@@ -21,7 +22,7 @@ HANDLE NativeAPI::OpenProcess(DWORD processid, ACCESS_MASK DesiredAccess)
 
     if(!NT_SUCCESS(status))
     {
-        SetLastError(RtlNtStatusToDosError(status)); // // Convert the error to Win32 byt using (RtlNtStatusToDosError) and store it 
+        SetLastError(RtlNtStatusToDosError(status)); // Convert the error to Win32 byt using (RtlNtStatusToDosError) and store it 
         return nullptr;
     }
 
@@ -51,4 +52,37 @@ bool NativeAPI::CloseHandle(HANDLE handle)
     }
 
     return true;
+}
+
+NTSTATUS NativeAPI::WriteVirtualMemory(
+    HANDLE processHandle,
+    PVOID baseAddress,
+    PVOID buffer,
+    SIZE_T bufferSize,
+    PSIZE_T bytesWritten)
+{
+    if(!IsInitialized())
+    {
+        return STATUS_NOT_IMPLEMENTED;
+    }
+
+    if(!processHandle || processHandle == INVALID_HANDLE_VALUE)
+    {
+        return STATUS_INVALID_HANDLE;
+    }
+
+    if(!buffer || bufferSize == 0)
+    {
+        return STATUS_INVALID_PARAMETER;
+    }
+
+    NTSTATUS status = m_NtWriteVirtualMemory(
+        processHandle,
+        baseAddress,
+        buffer,
+        bufferSize,
+        bytesWritten
+    );
+
+    return status;
 }

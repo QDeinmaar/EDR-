@@ -9,6 +9,13 @@ class NativeAPI {
 
     bool CloseHandle(HANDLE handle);
 
+    NTSTATUS WriteVirtualMemory(
+    HANDLE processHandle,
+    PVOID baseAddress,
+    PVOID buffer,
+    SIZE_T bufferSize,
+    PSIZE_T bytesWritten);
+
     // Adding HANDLES
 
     HANDLE OpenProcess(DWORD processId, ACCESS_MASK desiredAccess);
