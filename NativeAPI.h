@@ -20,12 +20,12 @@ class NativeAPI {
     PSIZE_T bytesWritten);
     
     NTSTATUS CreateThreadEx(
-        PHANDLE threadHandle,
-        ACCESS_MASK desiredAddress,
-        HANDLE processHandle,
-        PVOID startAddress,
-        PVOID parameter,
-        ULONG createFlags);
+    PHANDLE threadHandle,
+    ACCESS_MASK desiredAddress,
+    HANDLE processHandle,
+    PVOID startAddress,
+    PVOID parameter,
+    ULONG createFlags);
     
     NTSTATUS AllocateVirtualMemory(
     HANDLE processHandle,

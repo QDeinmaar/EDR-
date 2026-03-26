@@ -1,5 +1,6 @@
 #include "NativeAPI.h"
 #include <ntstatus.h>
+#include <iostream>
 
 HANDLE NativeAPI::OpenProcess(DWORD processid, ACCESS_MASK DesiredAccess)
 {
@@ -229,7 +230,9 @@ NTSTATUS NativeAPI::AllocateVirtualMemory(
     DWORD sourcePid = GetCurrentProcessId();
     DWORD targetPid = GetProcessIdFromHandle(processHandle);
 
-    
+    printf("DEBUG: AllocateVirtualMemory called, m_callback = %p\n", m_callback);
+    fflush(stdout);
+
     if (m_callback)
     {
         DetectionEvent event;
@@ -265,7 +268,7 @@ NTSTATUS NativeAPI::AllocateVirtualMemory(
         resultEvent.address = baseAddress ? *baseAddress : nullptr;
         resultEvent.size = regionSizeCopy;
         resultEvent.status = status;
-
+        
         m_callback(resultEvent);
     }
 
