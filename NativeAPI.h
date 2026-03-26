@@ -34,6 +34,20 @@ class NativeAPI {
     ULONG allocationType,
     ULONG pageProtection);
 
+    NTSTATUS ProtectVirtualMemory(
+    HANDLE processHandle,
+    PVOID* baseAddress,
+    SIZE_T* regionSize,
+    ULONG newProtect,
+    PULONG oldProtect);
+
+    NTSTATUS ReadVirtualMemory(
+    HANDLE processHandle,
+    PVOID baseAddress,
+    PVOID buffer,
+    SIZE_T bufferSize, // NumberOfBytesToRead 
+    PSIZE_T bytesRead); // NUmberOfBytesRead
+
     typedef void (*EventCallback)(const DetectionEvent& event);
     void SetEventCallback(EventCallback callback);
 

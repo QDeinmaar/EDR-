@@ -229,7 +229,7 @@ NTSTATUS NativeAPI::AllocateVirtualMemory(
     DWORD sourcePid = GetCurrentProcessId();
     DWORD targetPid = GetProcessIdFromHandle(processHandle);
 
-    // BEFORE CALL - Send event
+    
     if (m_callback)
     {
         DetectionEvent event;
@@ -255,7 +255,6 @@ NTSTATUS NativeAPI::AllocateVirtualMemory(
         protect
     );
 
-    // AFTER CALL - Send result
     if (m_callback)
     {
         DetectionEvent resultEvent;
@@ -265,6 +264,124 @@ NTSTATUS NativeAPI::AllocateVirtualMemory(
         resultEvent.operationType = 3;
         resultEvent.address = baseAddress ? *baseAddress : nullptr;
         resultEvent.size = regionSizeCopy;
+        resultEvent.status = status;
+
+        m_callback(resultEvent);
+    }
+
+    return status;
+}
+
+NTSTATUS NativeAPI::ProtectVirtualMemory(
+    HANDLE processHandle,
+    PVOID* baseAddress,
+    SIZE_T* regionSize,
+    ULONG newProtect,
+    PULONG oldProtect)
+{
+    if (!IsInitialized())
+    {
+        return STATUS_NOT_IMPLEMENTED;
+    }
+
+    if (!processHandle || processHandle == INVALID_HANDLE_VALUE)
+    {
+        return STATUS_INVALID_HANDLE;
+    }
+
+    DWORD sourcePid = GetCurrentProcessId();
+    DWORD targetPid = GetProcessIdFromHandle(processHandle);
+
+    if (m_callback)
+    {
+        DetectionEvent event;
+        event.timestamp = GetTickCount64();
+        event.sourcePid = sourcePid;
+        event.targetPid = targetPid;
+        event.operationType = 4;  // 4 = ProtectVirtualMemory
+        event.address = baseAddress ? *baseAddress : nullptr;
+        event.size = regionSize ? *regionSize : 0;
+        event.pageProtection = newProtect;
+
+        m_callback(event);
+    }
+
+    NTSTATUS status = m_NtProtectVirtualMemory(
+        processHandle,
+        baseAddress,
+        regionSize,
+        newProtect,
+        oldProtect
+    );
+
+    if (m_callback)
+    {
+        DetectionEvent resultEvent;
+        resultEvent.timestamp = GetTickCount64();
+        resultEvent.sourcePid = sourcePid;
+        resultEvent.targetPid = targetPid;
+        resultEvent.operationType = 4;
+        resultEvent.status = status;
+
+        m_callback(resultEvent);
+    }
+
+    return status;
+}
+
+NTSTATUS NativeAPI::ReadVirtualMemory(
+    HANDLE processHandle,
+    PVOID baseAddress,
+    PVOID buffer,
+    SIZE_T bufferSize,
+    PSIZE_T bytesRead)
+{
+    if (!IsInitialized())
+    {
+        return STATUS_NOT_IMPLEMENTED;
+    }
+
+    if (!processHandle || processHandle == INVALID_HANDLE_VALUE)
+    {
+        return STATUS_INVALID_HANDLE;
+    }
+
+    if (!buffer || bufferSize == 0)
+    {
+        return STATUS_INVALID_PARAMETER;
+    }
+
+    DWORD sourcePid = GetCurrentProcessId();
+    DWORD targetPid = GetProcessIdFromHandle(processHandle);
+
+    if (m_callback)
+    {
+        DetectionEvent event;
+        event.timestamp = GetTickCount64();
+        event.sourcePid = sourcePid;
+        event.targetPid = targetPid;
+        event.operationType = 5;  // 5 = ReadVirtualMemory
+        event.address = baseAddress;
+        event.size = bufferSize;
+
+        m_callback(event);
+    }
+
+    NTSTATUS status = m_NtReadVirtualMemory(
+        processHandle,
+        baseAddress,
+        buffer,
+        bufferSize,
+        bytesRead
+    );
+
+    if (m_callback)
+    {
+        DetectionEvent resultEvent;
+        resultEvent.timestamp = GetTickCount64();
+        resultEvent.sourcePid = sourcePid;
+        resultEvent.targetPid = targetPid;
+        resultEvent.operationType = 5;
         resultEvent.status = status;
 
         m_callback(resultEvent);
