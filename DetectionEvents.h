@@ -22,4 +22,8 @@ struct DetectionEvent
 
     ULONG pageProtection;          // Memory protection flags
     ULONG allocationType;   // Allocation type (MEM_COMMIT, etc.)
+
+    const wchar_t* registryValueName;  // Name of registry value
+    ULONG registryType;    // REG_SZ, REG_DWORD, etc.
+    ULONG registryDataSize; // Size of data
 };

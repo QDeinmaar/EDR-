@@ -390,6 +390,66 @@ NTSTATUS NativeAPI::ReadVirtualMemory(
     return status;
 }
 
+NTSTATUS NativeAPI::SetValueKey(
+    HANDLE keyHandle,
+    const wchar_t* valueName,
+    ULONG type,
+    PVOID data,
+    ULONG dataSize)
+{
+    if (!IsInitialized())
+    {
+        return STATUS_NOT_IMPLEMENTED;
+    }
+
+    if (!keyHandle || keyHandle == INVALID_HANDLE_VALUE)
+    {
+        return STATUS_INVALID_HANDLE;
+    }
+
+    DWORD sourcePid = GetCurrentProcessId();
+
+    // Convert valueName to UNICODE_STRING
+    UNICODE_STRING unicodeValueName;
+    RtlInitUnicodeString(&unicodeValueName, valueName);
+
+    if (m_callback)
+    {
+        DetectionEvent event;
+        event.timestamp = GetTickCount64();
+        event.sourcePid = sourcePid;
+        event.targetPid = 0;  // Registry has no process target
+        event.operationType = 6;  // 6 = SetValueKey
+        event.registryValueName = valueName;
+        event.registryType = type;
+        event.registryDataSize = dataSize;
+
+        m_callback(event);
+    }
+
+    NTSTATUS status = m_NtSetValueKey(
+        keyHandle,
+        &unicodeValueName,
+        0,   // TitleIndex (ignored)
+        type,
+        data,
+        dataSize
+    );
+
+    if (m_callback)
+    {
+        DetectionEvent resultEvent;
+        resultEvent.timestamp = GetTickCount64();
+        resultEvent.sourcePid = sourcePid;
+        resultEvent.operationType = 6;
+        resultEvent.status = status;
+
+        m_callback(resultEvent);
+    }
+
+    return status;
+}
+
 void NativeAPI::SetEventCallback(EventCallback callback)
 {
     m_callback = callback;

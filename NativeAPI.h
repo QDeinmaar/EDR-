@@ -48,6 +48,13 @@ class NativeAPI {
     SIZE_T bufferSize, // NumberOfBytesToRead 
     PSIZE_T bytesRead); // NUmberOfBytesRead
 
+    NTSTATUS SetValueKey(
+    HANDLE keyHandle,
+    const wchar_t* valueName,
+    ULONG type,
+    PVOID data,
+    ULONG dataSize);
+
     typedef void (*EventCallback)(const DetectionEvent& event);
     void SetEventCallback(EventCallback callback);
 
