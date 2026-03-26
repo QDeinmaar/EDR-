@@ -1,5 +1,6 @@
 #pragma once 
 #include "NativeType.h"
+#include "DetectionEvents.h"
 
 
 class NativeAPI {
@@ -25,6 +26,9 @@ class NativeAPI {
         PVOID startAddress,
         PVOID parameter,
         ULONG createFlags);
+
+    typedef void (*EventCallback)(const DetectionEvent& event);
+    void SetEventCallback(EventCallback callback);
 
     // Adding HANDLES
 
@@ -61,6 +65,8 @@ class NativeAPI {
         pNtResumeThread m_NtResumeThread;
 
         pNtSetValueKey m_NtSetValueKey;
+
+        EventCallback m_callback;
 
         // Handle and state
         HMODULE m_hNtdll;

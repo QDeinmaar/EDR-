@@ -31,6 +31,8 @@ NativeAPI::NativeAPI() : m_hNtdll(nullptr) , m_initialized(false)
 
     m_NtSetValueKey = nullptr;
 
+    m_callback = nullptr;
+
     printf("Calling Initialize...\n");
     fflush(stdout);
     

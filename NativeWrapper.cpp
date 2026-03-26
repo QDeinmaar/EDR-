@@ -153,3 +153,7 @@ NTSTATUS NativeAPI::CreateThreadEx(
         return status;
 }
 
+void NativeAPI::SetEventCallback(EventCallback callback)
+{
+    m_callback = callback;
+}
