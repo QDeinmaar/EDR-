@@ -39,6 +39,7 @@ class NativeAPI {
         NativeAPI& operator=(const NativeAPI&) = delete;
 
         bool Initialize();
+        DWORD GetProcessIdFromHandle(HANDLE hProcess);
 
         // Function pointers to all our typedefs
         pNtOpenProcess m_NtOpenProcess;
@@ -49,6 +50,7 @@ class NativeAPI {
         pNtClose m_NtClose;
 
         pNtQuerySystemInformation m_NtQuerySystemInformation;
+        pNtQueryInformationProcess m_NtQueryInformationProcess;
 
         pNtWriteVirtualMemory m_NtWriteVirtualMemory;
         pNtProtectVirtualMemory m_NtProtectVirtualMemory;

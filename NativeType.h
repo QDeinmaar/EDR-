@@ -84,6 +84,13 @@ typedef NTSTATUS(NTAPI* pNtQuerySystemInformation)
     _Out_opt_ PULONG ReturnLength 
 );
 
+typedef NTSTATUS (NTAPI* pNtQueryInformationProcess)(
+    HANDLE ProcessHandle,
+    PROCESSINFOCLASS ProcessInformationClass,
+    PVOID ProcessInformation,
+    ULONG ProcessInformationLength,
+    PULONG ReturnLength
+);
 
 // ====== Memory Operations ======
 

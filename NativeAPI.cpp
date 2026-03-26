@@ -66,6 +66,9 @@ bool NativeAPI::Initialize()
     m_NtQuerySystemInformation = (pNtQuerySystemInformation)GetProcAddress(m_hNtdll, "NtQuerySystemInformation");
     if(!m_NtQuerySystemInformation) return false;
 
+    m_NtQueryInformationProcess = (pNtQueryInformationProcess)GetProcAddress(m_hNtdll, "NtQueryInformationProcess");
+    if (!m_NtQueryInformationProcess) return false;
+
     m_NtWriteVirtualMemory = (pNtWriteVirtualMemory)GetProcAddress(m_hNtdll, "NtWriteVirtualMemory");
     if(!m_NtWriteVirtualMemory) return false;
 

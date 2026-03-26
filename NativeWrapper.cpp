@@ -54,6 +54,32 @@ bool NativeAPI::CloseHandle(HANDLE handle)
     return true;
 }
 
+DWORD NativeAPI::GetProcessIdFromHandle(HANDLE hProcess)
+{
+    if (!hProcess || hProcess == INVALID_HANDLE_VALUE)
+    {
+        return 0;
+    }
+
+    PROCESS_BASIC_INFORMATION pbi = {0};
+    ULONG returnLength = 0;
+
+    NTSTATUS status = m_NtQueryInformationProcess(
+        hProcess,
+        ProcessBasicInformation,
+        &pbi,
+        sizeof(pbi),
+        &returnLength
+    );
+
+    if (NT_SUCCESS(status))
+    {
+        return (DWORD)(ULONG_PTR)pbi.UniqueProcessId;
+    }
+
+    return 0;
+}
+
 
 NTSTATUS NativeAPI::WriteVirtualMemory(
     HANDLE processHandle,
@@ -62,6 +88,8 @@ NTSTATUS NativeAPI::WriteVirtualMemory(
     SIZE_T bufferSize,
     PSIZE_T bytesWritten)
 {
+    DWORD sourcePid = GetCurrentProcessId();
+
     if(!IsInitialized())
     {
         return STATUS_NOT_IMPLEMENTED;
