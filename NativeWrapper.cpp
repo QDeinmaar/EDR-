@@ -209,6 +209,70 @@ NTSTATUS NativeAPI::CreateThreadEx(
         return status;
 }
 
+NTSTATUS NativeAPI::AllocateVirtualMemory(
+    HANDLE processHandle,
+    PVOID* baseAddress,
+    SIZE_T regionSize,
+    ULONG allocationType,
+    ULONG protect)
+{
+    if (!IsInitialized())
+    {
+        return STATUS_NOT_IMPLEMENTED;
+    }
+
+    if (!processHandle || processHandle == INVALID_HANDLE_VALUE)
+    {
+        return STATUS_INVALID_HANDLE;
+    }
+
+    DWORD sourcePid = GetCurrentProcessId();
+    DWORD targetPid = GetProcessIdFromHandle(processHandle);
+
+    // BEFORE CALL - Send event
+    if (m_callback)
+    {
+        DetectionEvent event;
+        event.timestamp = GetTickCount64();
+        event.sourcePid = sourcePid;
+        event.targetPid = targetPid;
+        event.operationType = 3;  // 3 = AllocateVirtualMemory
+        event.address = baseAddress ? *baseAddress : nullptr;
+        event.size = regionSize;
+        event.pageProtection = protect;
+        event.allocationType = allocationType;
+
+        m_callback(event);
+    }
+
+    SIZE_T regionSizeCopy = regionSize;
+    NTSTATUS status = m_NtAllocateVirtualMemory(
+        processHandle,
+        baseAddress,
+        0,          // ZeroBits
+        &regionSizeCopy,
+        allocationType,
+        protect
+    );
+
+    // AFTER CALL - Send result
+    if (m_callback)
+    {
+        DetectionEvent resultEvent;
+        resultEvent.timestamp = GetTickCount64();
+        resultEvent.sourcePid = sourcePid;
+        resultEvent.targetPid = targetPid;
+        resultEvent.operationType = 3;
+        resultEvent.address = baseAddress ? *baseAddress : nullptr;
+        resultEvent.size = regionSizeCopy;
+        resultEvent.status = status;
+
+        m_callback(resultEvent);
+    }
+
+    return status;
+}
+
 void NativeAPI::SetEventCallback(EventCallback callback)
 {
     m_callback = callback;

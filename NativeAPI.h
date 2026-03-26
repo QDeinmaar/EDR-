@@ -26,6 +26,13 @@ class NativeAPI {
         PVOID startAddress,
         PVOID parameter,
         ULONG createFlags);
+    
+    NTSTATUS AllocateVirtualMemory(
+    HANDLE processHandle,
+    PVOID* baseAddress,
+    SIZE_T regionSize,
+    ULONG allocationType,
+    ULONG pageProtection);
 
     typedef void (*EventCallback)(const DetectionEvent& event);
     void SetEventCallback(EventCallback callback);

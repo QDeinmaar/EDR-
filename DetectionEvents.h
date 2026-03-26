@@ -19,4 +19,7 @@ struct DetectionEvent
     // For CreateThreadEx
     PVOID startAddress;      // Thread entry point
     ULONG createFlags;       // CREATE_SUSPENDED flag
+
+    ULONG pageProtection;          // Memory protection flags
+    ULONG allocationType;   // Allocation type (MEM_COMMIT, etc.)
 };
