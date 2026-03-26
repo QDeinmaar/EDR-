@@ -88,7 +88,6 @@ NTSTATUS NativeAPI::WriteVirtualMemory(
     SIZE_T bufferSize,
     PSIZE_T bytesWritten)
 {
-    DWORD sourcePid = GetCurrentProcessId();
 
     if(!IsInitialized())
     {
@@ -105,6 +104,22 @@ NTSTATUS NativeAPI::WriteVirtualMemory(
         return STATUS_INVALID_PARAMETER;
     }
 
+    DWORD sourcePid = GetCurrentProcessId();
+    DWORD targetid = GetProcessIdFromHandle(processHandle);
+
+    if(m_callback)
+    {
+        DetectionEvent event;
+        event.timestamp = GetTickCount64();
+        event.sourcePid = sourcePid;
+        event.targetPid = targetid;
+        event.operationType = 1;
+        event.address = baseAddress;
+        event.size = bufferSize;
+
+        m_callback(event);
+    }
+
     NTSTATUS status = m_NtWriteVirtualMemory(
         processHandle,
         baseAddress,
@@ -112,6 +127,18 @@ NTSTATUS NativeAPI::WriteVirtualMemory(
         bufferSize,
         bytesWritten
     );
+
+    if(m_callback)
+    {
+        DetectionEvent resultEvent;
+        resultEvent.timestamp = GetTickCount64();
+        resultEvent.sourcePid = sourcePid;
+        resultEvent.targetPid = targetid;
+        resultEvent.operationType = 1;
+        resultEvent.status = status;
+
+        m_callback(resultEvent);
+    }
 
     return status;
 }
@@ -136,6 +163,23 @@ NTSTATUS NativeAPI::CreateThreadEx(
 
     PUSER_THREAD_START_ROUTINE startRoutine = (PUSER_THREAD_START_ROUTINE)startAddress; // Cast to do function pointer type
 
+    DWORD sourcePid = GetCurrentProcessId();
+    DWORD targetid = GetProcessIdFromHandle(threadHandle);
+
+    if(m_callback)
+    {
+        DetectionEvent event;
+        event.timestamp = GetTickCount64();
+        event.sourcePid = sourcePid;
+        event.targetPid = targetid;
+        event.operationType = 2; // 2 for Creating Threads
+        event.startAddress = startAddress;
+        event.createFlags = createFlags;
+
+        m_callback(event);
+
+    }
+
     NTSTATUS status = m_NtCreateThreadEx(
         threadHandle,
         desiredAccess,
@@ -149,6 +193,18 @@ NTSTATUS NativeAPI::CreateThreadEx(
         0,
         nullptr
     );
+
+    if(m_callback)
+    {
+        DetectionEvent resultEvent;
+        resultEvent.timestamp = GetTickCount64();
+        resultEvent.sourcePid = sourcePid;
+        resultEvent.targetPid = targetid;
+        resultEvent.operationType = 2;
+        resultEvent.status = status;
+
+        m_callback(resultEvent);
+    }
 
         return status;
 }
