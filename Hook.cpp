@@ -1,6 +1,8 @@
 #include "MinHook.h"
 #include "NativeType.h"
 
+// this is Original pointer to the function
+
 pNtAllocateVirtualMemory OriginalNtAllocateVirtualMemory = nullptr;
 
 NTSTATUS NTAPI HookNtAllocateVirtualMemory(
@@ -12,6 +14,7 @@ NTSTATUS NTAPI HookNtAllocateVirtualMemory(
     ULONG Protect
 );
 
+// this is Our Hook function 
 
 pNtWriteVirtualMemory OriginalNtWriteVirtualMemory = nullptr;
 
@@ -33,16 +36,16 @@ NTSTATUS NTAPI HookNtReadVirtualMemory(
     PSIZE_T NumberOfBytesRead
 );
 
-pNtAllocateVirtualMemory OriginalNtAllocateVirtualMemory = nullptr;
+pNtProtectVirtualMemory OriginalNtProtectVirtualMemory = nullptr;
 
-NTSTATUS NTAPI HookNtAllocateVirtualMemory(
+NTSTATUS NTAPI HookNtProtectVirtualMemory(
     HANDLE ProcessHandle,
     PVOID* BaseAddress,
-    ULONG_PTR ZeroBits,
     PSIZE_T RegionSize,
-    ULONG AllocationType,
-    ULONG Protect
+    ULONG NewProtect,
+    PULONG OldProtect
 );
+
 
 pNtCreateThreadEx OriginalNtCreateThreadEx = nullptr;
 
