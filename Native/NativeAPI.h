@@ -2,11 +2,13 @@
 #include "NativeType.h"
 #include "DetectionEvents.h"
 
-
 class NativeAPI {
     public:
     static NativeAPI& Instance(); // Singleton access
     bool IsInitialized() const;
+
+    DWORD GetProcessIdFromHandle(HANDLE hProcess);
+    
 
     // public methods 
 
@@ -71,7 +73,6 @@ class NativeAPI {
         NativeAPI& operator=(const NativeAPI&) = delete;
 
         bool Initialize();
-        DWORD GetProcessIdFromHandle(HANDLE hProcess);
 
         // Function pointers to all our typedefs
         pNtOpenProcess m_NtOpenProcess;

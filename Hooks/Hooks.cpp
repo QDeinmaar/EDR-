@@ -1,4 +1,6 @@
 #include "Hooks.h"
+#include "DetectionEvents.h" 
+#include "NativeAPI.h"
 
 NTSTATUS NTAPI HookNtWriteVirtualMemory
 (   HANDLE ProcessHandle, PVOID BaseAddress,
@@ -9,7 +11,19 @@ NTSTATUS NTAPI HookNtWriteVirtualMemory
         DWORD sourcePid = GetCurrentProcessId();
 
         // Target
-        DWORD targetPid = GetProcessIdFromHandle(ProcessHandle);
+        DWORD targetPid = NativeAPI::Instance().GetProcessIdFromHandle(ProcessHandle);
 
-        // 
+        // Create Evenement for the IA
+
+        DetectionEvent event;
+        event.timestamp = GetTickCount64();
+        event.sourcePid = sourcePid;
+        event.targetPid = targetPid;
+        event.operationType = 1; // 1 = WriteVirtualMemory
+        event.address = BaseAddress;
+        event.size = NumberOfBytesToWrite;
+
+        //
+
+        
 }
