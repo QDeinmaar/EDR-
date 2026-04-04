@@ -1,0 +1,2 @@
+C:\Users\tudor\MYSYS2\mingw64\bin\ar.exe qc minhook.a CMakeFiles/minhook.dir/src/buffer.c.obj CMakeFiles/minhook.dir/src/hook.c.obj CMakeFiles/minhook.dir/src/trampoline.c.obj CMakeFiles/minhook.dir/src/hde/hde64.c.obj
+C:\Users\tudor\MYSYS2\mingw64\bin\ranlib.exe minhook.a

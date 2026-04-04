@@ -1,0 +1,7 @@
+C:/Users/tudor/Desktop/Native/minhook/build/CMakeFiles/minhook.dir
+C:/Users/tudor/Desktop/Native/minhook/build/CMakeFiles/edit_cache.dir
+C:/Users/tudor/Desktop/Native/minhook/build/CMakeFiles/rebuild_cache.dir
+C:/Users/tudor/Desktop/Native/minhook/build/CMakeFiles/list_install_components.dir
+C:/Users/tudor/Desktop/Native/minhook/build/CMakeFiles/install.dir
+C:/Users/tudor/Desktop/Native/minhook/build/CMakeFiles/install/local.dir
+C:/Users/tudor/Desktop/Native/minhook/build/CMakeFiles/install/strip.dir
