@@ -101,15 +101,15 @@ NTSTATUS NTAPI HookNtAllocateVirtualMemory
 
     // event 
 
-     DetectionEvent event;
-        event.timestamp = GetTickCount64();
-        event.sourcePid = sourcePid;
-        event.targetPid = targetPid;
-        event.operationType = 3; // 3 = AllocateVirtualMemory
-        event.address = BaseAddress ? *BaseAddress : nullptr;
-        event.size = RegionSize ? *RegionSize : 0;
-        event.allocationType = AllocationType;
-        event.pageProtection = PageProtection;
+    DetectionEvent event;
+    event.timestamp = GetTickCount64();
+    event.sourcePid = sourcePid;
+    event.targetPid = targetPid;
+    event.operationType = 3; // 3 = AllocateVirtualMemory
+    event.address = BaseAddress ? *BaseAddress : nullptr;
+    event.size = RegionSize ? *RegionSize : 0;
+    event.allocationType = AllocationType;
+    event.pageProtection = PageProtection;
 
     //
 
@@ -125,5 +125,86 @@ NTSTATUS NTAPI HookNtAllocateVirtualMemory
         PageProtection
     );
 
+    return status;
+}
+
+NTSTATUS NTAPI HookNtProtectVirtualMemory(
+    HANDLE ProcessHandle, PVOID* BaseAddress,
+    PSIZE_T RegionSize, ULONG NewProtect,
+    PULONG OldProtect
+)
+{
+    DWORD sourcePid = GetCurrentProcessId();
+
+    DWORD targetPid = NativeAPI::Instance().GetProcessIdFromHandle(ProcessHandle);
+
+    // event 
+
+    DetectionEvent event;
+    event.timestamp = GetTickCount64();
+    event.sourcePid = sourcePid;
+    event.targetPid = targetPid;
+    event.operationType = 4; // 4 = ProtectVirtualMemory
+    event.address = BaseAddress ? *BaseAddress : nullptr;
+    event.size = RegionSize ? *RegionSize : 0;
+    event.pageProtection = NewProtect;
+
+    //
+
+    EventCallback callback = NativeAPI::Instance().GetEventCallback();
+    if(callback)
+        {
+            callback(event);
+        }
+    
+    //
+
+    NTSTATUS status = OriginalNtProtectVirtualMemory(
+        ProcessHandle, BaseAddress,
+        RegionSize, NewProtect,
+        OldProtect
+    );
+
+    return status;
+}
+
+NTSTATUS NTAPI HookNtReadVirtualMemory(
+    HANDLE ProcessHandle,
+    PVOID BaseAddress,
+    PVOID Buffer,
+    SIZE_T NumberOfBytesToRead,
+    PSIZE_T NumberOfBytesRead)
+{
+    
+    DWORD sourcePid = GetCurrentProcessId();
+
+    DWORD targetPid = NativeAPI::Instance().GetProcessIdFromHandle(ProcessHandle);
+
+    // event 
+
+    DetectionEvent event;
+    event.timestamp = GetTickCount64();
+    event.sourcePid = sourcePid;
+    event.targetPid = targetPid;
+    event.operationType = 5; // 5 = ReadVirtualMemory
+    event.address = BaseAddress;
+    event.size = NumberOfBytesToRead;
+
+    //
+
+    EventCallback callback = NativeAPI::Instance().GetEventCallback();
+    if(callback)
+        {
+            callback(event);
+        }
+
+    //
+
+    NTSTATUS status = OriginalNtReadVirtualMemory(
+        ProcessHandle, BaseAddress,
+        Buffer, NumberOfBytesToRead,
+        NumberOfBytesRead
+    );
+    
     return status;
 }
