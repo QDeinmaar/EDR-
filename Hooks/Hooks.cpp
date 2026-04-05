@@ -1,6 +1,7 @@
 #include "Hooks.h"
 #include "DetectionEvents.h" 
 #include "NativeAPI.h"
+#include <iostream>
 
 NTSTATUS NTAPI HookNtWriteVirtualMemory
 (   HANDLE ProcessHandle, PVOID BaseAddress,
@@ -207,4 +208,59 @@ NTSTATUS NTAPI HookNtReadVirtualMemory(
     );
     
     return status;
+}
+
+// ===================================
+// ===================================
+
+bool InstallHooks()
+{
+    // We Initialize MinHook
+
+    if(MH_Initialize() != MH_OK)
+    {
+        printf("EDR failed to Initialize MinHook !\n");
+        return false;
+    }
+
+    // We create instance of the hooks
+
+    if(MH_CreateHook(&OriginalNtWriteVirtualMemory, &HookNtWriteVirtualMemory, NULL) != MH_OK)
+    {
+        printf("EDR failed to Hook : NtWriteVirtualMemory !\n");
+        return false;
+    }
+
+    if(MH_CreateHook(&OriginalNtCreateThreadEx, &HookNtCreateThreadEx, NULL) != MH_OK)
+    {
+        printf("EDR failed to Hook : NtCreateThreadEx !\n");
+        return false;
+    }
+
+    if(MH_CreateHook(&OriginalNtAllocateVirtualMemory, &HookNtAllocateVirtualMemory, NULL) != MH_OK)
+    {
+        printf("EDR failed to Hook : NtAllocateVirtualMemory !\n");
+        return false;
+    }
+
+    if(MH_CreateHook(&OriginalNtProtectVirtualMemory, &HookNtProtectVirtualMemory, NULL) != MH_OK)
+    {
+        printf("EDR failed to Hook : NtProtectVirtualMemory !\n");
+        return false;
+    }
+
+    if(MH_CreateHook(&OriginalNtReadVirtualMemory, &HookNtReadVirtualMemory, NULL) != MH_OK)
+    {
+        printf("EDR failed to Hook : NtReadVirtualMemory !\n");
+        return false;
+    }
+
+    if(MH_EnableHook(MH_ALL_HOOKS) != MH_OK)
+    {
+        printf("EDR failed to enable the Hooks !\n");
+        return false;
+    }
+
+    printf("EDR: All the Hooks installed successfully !\n");
+    return true;
 }
