@@ -5,7 +5,7 @@
 NTSTATUS NTAPI HookNtWriteVirtualMemory
 (   HANDLE ProcessHandle, PVOID BaseAddress,
     PVOID Buffer, SIZE_T NumberOfBytesToWrite,
-    SIZE_T NumberOfBytesWritten)
+    PSIZE_T NumberOfBytesWritten)
 {
         // Source
         DWORD sourcePid = GetCurrentProcessId();
@@ -23,7 +23,23 @@ NTSTATUS NTAPI HookNtWriteVirtualMemory
         event.address = BaseAddress;
         event.size = NumberOfBytesToWrite;
 
-        //
+        // We send the event to AI
 
+        EventCallback callback = NativeAPI::Instance().GetEventCallback();
+        if(callback)
+        {
+            callback(event);
+        }
+
+        // Here we call the original function
+
+        NTSTATUS status = OriginalNtWriteVirtualMemory(
+            ProcessHandle,
+            BaseAddress,
+            Buffer,
+            NumberOfBytesToWrite,
+            NumberOfBytesWritten
+        );
         
+        return status;
 }

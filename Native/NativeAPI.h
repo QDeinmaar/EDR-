@@ -2,12 +2,15 @@
 #include "NativeType.h"
 #include "DetectionEvents.h"
 
+typedef void (*EventCallback)(const DetectionEvent& event);
+
 class NativeAPI {
     public:
     static NativeAPI& Instance(); // Singleton access
     bool IsInitialized() const;
 
     DWORD GetProcessIdFromHandle(HANDLE hProcess);
+    EventCallback GetEventCallback() const;
     
 
     // public methods 
