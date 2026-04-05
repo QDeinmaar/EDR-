@@ -1,9 +1,17 @@
 #include "NativeAPI.h"
+#include "Hooks.h"
 #include <windows.h>
 #include <winternl.h>
 #include <winnt.h>
 #include <ntdef.h>
 #include <iostream>
+
+// Global Variables for the Hooks
+pNtWriteVirtualMemory g_NtWriteVirtualMemory = nullptr;
+pNtAllocateVirtualMemory g_NtAllocateVirtualMemory = nullptr;
+pNtProtectVirtualMemory g_NtProtectVirtualMemory = nullptr;
+pNtReadVirtualMemory g_NtReadVirtualMemory = nullptr;
+pNtCreateThreadEx g_NtCreateThreadEx = nullptr;
 
 NativeAPI& NativeAPI::Instance()
 {
@@ -95,22 +103,27 @@ bool NativeAPI::Initialize()
 
     m_NtWriteVirtualMemory = (pNtWriteVirtualMemory)GetProcAddress(m_hNtdll, "NtWriteVirtualMemory");
     if (!m_NtWriteVirtualMemory) { printf("FAILED: NtWriteVirtualMemory\n"); return false; }
+    g_NtWriteVirtualMemory = m_NtWriteVirtualMemory;  
     printf("OK: NtWriteVirtualMemory\n");
 
     m_NtProtectVirtualMemory = (pNtProtectVirtualMemory)GetProcAddress(m_hNtdll, "NtProtectVirtualMemory");
     if (!m_NtProtectVirtualMemory) { printf("FAILED: NtProtectVirtualMemory\n"); return false; }
+    g_NtProtectVirtualMemory = m_NtProtectVirtualMemory; 
     printf("OK: NtProtectVirtualMemory\n");
 
     m_NtAllocateVirtualMemory = (pNtAllocateVirtualMemory)GetProcAddress(m_hNtdll, "NtAllocateVirtualMemory");
     if (!m_NtAllocateVirtualMemory) { printf("FAILED: NtAllocateVirtualMemory\n"); return false; }
+    g_NtAllocateVirtualMemory = m_NtAllocateVirtualMemory;  
     printf("OK: NtAllocateVirtualMemory\n");
 
     m_NtReadVirtualMemory = (pNtReadVirtualMemory)GetProcAddress(m_hNtdll, "NtReadVirtualMemory");
     if (!m_NtReadVirtualMemory) { printf("FAILED: NtReadVirtualMemory\n"); return false; }
+    g_NtReadVirtualMemory = m_NtReadVirtualMemory;  
     printf("OK: NtReadVirtualMemory\n");
 
     m_NtCreateThreadEx = (pNtCreateThreadEx)GetProcAddress(m_hNtdll, "NtCreateThreadEx");
     if (!m_NtCreateThreadEx) { printf("FAILED: NtCreateThreadEx\n"); return false; }
+    g_NtCreateThreadEx = m_NtCreateThreadEx;  
     printf("OK: NtCreateThreadEx\n");
 
     m_NtResumeThread = (pNtResumeThread)GetProcAddress(m_hNtdll, "NtResumeThread");
@@ -137,6 +150,11 @@ bool NativeAPI::Initialize()
 bool NativeAPI::IsInitialized() const
 {
     return m_initialized;
+}
+
+EventCallback NativeAPI::GetEventCallback() const
+{
+    return m_callback;
 }
 
 

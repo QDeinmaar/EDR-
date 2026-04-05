@@ -1,9 +1,17 @@
 #include "MinHook.h"
 #include "NativeType.h"
 
+// Global Variables 
+
+extern pNtWriteVirtualMemory g_NtWriteVirtualMemory;
+extern pNtAllocateVirtualMemory g_NtAllocateVirtualMemory;
+extern pNtProtectVirtualMemory g_NtProtectVirtualMemory;
+extern pNtReadVirtualMemory g_NtReadVirtualMemory;
+extern pNtCreateThreadEx g_NtCreateThreadEx;
+
 // this is Original pointer to the function
 
-pNtAllocateVirtualMemory OriginalNtAllocateVirtualMemory = nullptr;
+extern pNtAllocateVirtualMemory OriginalNtAllocateVirtualMemory;
 
 NTSTATUS NTAPI HookNtAllocateVirtualMemory(
     HANDLE ProcessHandle,
@@ -16,7 +24,7 @@ NTSTATUS NTAPI HookNtAllocateVirtualMemory(
 
 // this is Our Hook function 
 
-pNtWriteVirtualMemory OriginalNtWriteVirtualMemory = nullptr;
+extern pNtWriteVirtualMemory OriginalNtWriteVirtualMemory;
 
 NTSTATUS NTAPI HookNtWriteVirtualMemory(
     HANDLE ProcessHandle,
@@ -26,7 +34,7 @@ NTSTATUS NTAPI HookNtWriteVirtualMemory(
     PSIZE_T NumberOfBytesWritten
 );
 
-pNtReadVirtualMemory OriginalNtReadVirtualMemory = nullptr;
+extern pNtReadVirtualMemory OriginalNtReadVirtualMemory;
 
 NTSTATUS NTAPI HookNtReadVirtualMemory(
     HANDLE ProcessHandle,
@@ -36,7 +44,7 @@ NTSTATUS NTAPI HookNtReadVirtualMemory(
     PSIZE_T NumberOfBytesRead
 );
 
-pNtProtectVirtualMemory OriginalNtProtectVirtualMemory = nullptr;
+extern pNtProtectVirtualMemory OriginalNtProtectVirtualMemory;
 
 NTSTATUS NTAPI HookNtProtectVirtualMemory(
     HANDLE ProcessHandle,
@@ -47,7 +55,7 @@ NTSTATUS NTAPI HookNtProtectVirtualMemory(
 );
 
 
-pNtCreateThreadEx OriginalNtCreateThreadEx = nullptr;
+extern pNtCreateThreadEx OriginalNtCreateThreadEx;
 
 NTSTATUS NTAPI HookNtCreateThreadEx(
     PHANDLE ThreadHandle,
@@ -62,3 +70,8 @@ NTSTATUS NTAPI HookNtCreateThreadEx(
     SIZE_T MaximumStackSize,
     PVOID AttributeList
 );
+
+// Installation fucntion
+
+bool InstallHooks();
+

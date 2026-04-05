@@ -2,7 +2,19 @@
 #include "DetectionEvents.h" 
 #include "NativeAPI.h"
 #include <iostream>
+#include <windows.h>
 
+// ===========================
+// ===========================
+
+pNtWriteVirtualMemory OriginalNtWriteVirtualMemory = nullptr;
+pNtAllocateVirtualMemory OriginalNtAllocateVirtualMemory = nullptr;
+pNtProtectVirtualMemory OriginalNtProtectVirtualMemory = nullptr;
+pNtReadVirtualMemory OriginalNtReadVirtualMemory = nullptr;
+pNtCreateThreadEx OriginalNtCreateThreadEx = nullptr;
+
+// ===========================
+// ===========================
 NTSTATUS NTAPI HookNtWriteVirtualMemory
 (   HANDLE ProcessHandle, PVOID BaseAddress,
     PVOID Buffer, SIZE_T NumberOfBytesToWrite,
@@ -223,33 +235,40 @@ bool InstallHooks()
         return false;
     }
 
+    // Global Variables defined in NativeAPI.cpp
+
+    OriginalNtWriteVirtualMemory = g_NtWriteVirtualMemory;
+    OriginalNtAllocateVirtualMemory = g_NtAllocateVirtualMemory;
+    OriginalNtProtectVirtualMemory = g_NtProtectVirtualMemory;
+    OriginalNtReadVirtualMemory = g_NtReadVirtualMemory;
+    OriginalNtCreateThreadEx = g_NtCreateThreadEx;
+
     // We create instance of the hooks
 
-    if(MH_CreateHook(&OriginalNtWriteVirtualMemory, &HookNtWriteVirtualMemory, NULL) != MH_OK)
+    if(MH_CreateHook((LPVOID)OriginalNtWriteVirtualMemory, (LPVOID)&HookNtWriteVirtualMemory, NULL) != MH_OK)
     {
-        printf("EDR failed to Hook : NtWriteVirtualMemory !\n");
+        printf("EDR failed to Hook: NtWriteVirtualMemory !\n");
         return false;
     }
-
-    if(MH_CreateHook(&OriginalNtCreateThreadEx, &HookNtCreateThreadEx, NULL) != MH_OK)
+    if(MH_CreateHook((LPVOID)OriginalNtCreateThreadEx, (LPVOID)&HookNtCreateThreadEx, NULL) != MH_OK)
     {
         printf("EDR failed to Hook : NtCreateThreadEx !\n");
         return false;
     }
 
-    if(MH_CreateHook(&OriginalNtAllocateVirtualMemory, &HookNtAllocateVirtualMemory, NULL) != MH_OK)
+    if(MH_CreateHook((LPVOID)OriginalNtAllocateVirtualMemory, (LPVOID)&HookNtAllocateVirtualMemory, NULL) != MH_OK)
     {
         printf("EDR failed to Hook : NtAllocateVirtualMemory !\n");
         return false;
     }
 
-    if(MH_CreateHook(&OriginalNtProtectVirtualMemory, &HookNtProtectVirtualMemory, NULL) != MH_OK)
+    if(MH_CreateHook((LPVOID)OriginalNtProtectVirtualMemory, (LPVOID)&HookNtProtectVirtualMemory, NULL) != MH_OK)
     {
         printf("EDR failed to Hook : NtProtectVirtualMemory !\n");
         return false;
     }
 
-    if(MH_CreateHook(&OriginalNtReadVirtualMemory, &HookNtReadVirtualMemory, NULL) != MH_OK)
+    if(MH_CreateHook((LPVOID)OriginalNtReadVirtualMemory, (LPVOID)&HookNtReadVirtualMemory, NULL) != MH_OK)
     {
         printf("EDR failed to Hook : NtReadVirtualMemory !\n");
         return false;

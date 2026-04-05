@@ -11,7 +11,6 @@ class NativeAPI {
 
     DWORD GetProcessIdFromHandle(HANDLE hProcess);
     EventCallback GetEventCallback() const;
-    
 
     // public methods 
 

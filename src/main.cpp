@@ -1,15 +1,14 @@
 #include "NativeAPI.h"
 #include "DetectionEvents.h"
+#include "Hooks.h"
 #include <stdio.h>
 #include <windows.h>
 #include <tlhelp32.h>
 
 // Global variable to track lsass.exe PID
-
 DWORD g_lsassPid = 0;
 
 // Find lsass.exe PID
-
 DWORD FindLsassPid()
 {
     HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
@@ -35,7 +34,6 @@ DWORD FindLsassPid()
 }
 
 // Your AI callback - this is where detection happens
-
 void MyDetectionCallback(const DetectionEvent& event)
 {
     printf("\n========================================\n");
@@ -67,11 +65,9 @@ void MyDetectionCallback(const DetectionEvent& event)
         printf("Protection: 0x%X\n", event.pageProtection);
     
     // DETECTION RULES
-
     bool alert = false;
     
     // Rule 1: RWX memory allocation (shellcode)
-
     if (event.operationType == 3 && event.pageProtection == PAGE_EXECUTE_READWRITE)
     {
         printf("\n[!!!] ALERT: RWX memory allocation detected! Possible shellcode preparation!\n");
@@ -79,7 +75,6 @@ void MyDetectionCallback(const DetectionEvent& event)
     }
     
     // Rule 2: Write to lsass.exe (credential dumping)
-
     if (event.operationType == 1 && event.targetPid == g_lsassPid)
     {
         printf("\n[!!!] ALERT: Write to lsass.exe! Possible credential dumping!\n");
@@ -87,7 +82,6 @@ void MyDetectionCallback(const DetectionEvent& event)
     }
     
     // Rule 3: Read from lsass.exe (credential dumping)
-
     if (event.operationType == 5 && event.targetPid == g_lsassPid)
     {
         printf("\n[!!!] ALERT: Read from lsass.exe! Possible credential dumping!\n");
@@ -95,7 +89,6 @@ void MyDetectionCallback(const DetectionEvent& event)
     }
     
     // Rule 4: Remote thread creation (code injection)
-
     if (event.operationType == 2 && event.sourcePid != event.targetPid)
     {
         printf("\n[!!!] ALERT: Remote thread creation detected! Possible code injection!\n");
@@ -103,7 +96,6 @@ void MyDetectionCallback(const DetectionEvent& event)
     }
     
     // Rule 5: Registry persistence
-
     if (event.operationType == 6)
     {
         printf("\n[!!!] ALERT: Registry modification detected! Possible persistence!\n");
@@ -123,13 +115,11 @@ int main()
     fflush(stdout);
     
     // Find lsass.exe PID
-
     g_lsassPid = FindLsassPid();
     printf("lsass.exe PID: %lu\n", g_lsassPid);
     fflush(stdout);
     
     // Get NativeAPI instance
-
     NativeAPI& nt = NativeAPI::Instance();
     
     if (!nt.IsInitialized())
@@ -142,15 +132,26 @@ int main()
     fflush(stdout);
     
     // Register detection callback
-
     nt.SetEventCallback(MyDetectionCallback);
     printf("DEBUG: Callback registered at address %p\n", MyDetectionCallback);
     fflush(stdout);
     printf("Detection callback registered\n\n");
     fflush(stdout);
+
+    // ============================================
+    // INSTALLER LES HOOKS ICI
+    // ============================================
+    if (!InstallHooks())
+    {
+        printf("ERROR: Failed to install hooks!\n");
+        return 1;
+    }
+
+    // ============================================
+    // TESTS
+    // ============================================
     
     // TEST 1: Open current process (normal operation)
-
     printf("=== TEST 1: Opening current process ===\n");
     fflush(stdout);
     
@@ -165,7 +166,6 @@ int main()
     fflush(stdout);
     
     // TEST 2: Allocate RWX memory (simulates shellcode)
-
     printf("\n=== TEST 2: Allocating RWX memory (simulates shellcode) ===\n");
     fflush(stdout);
     
@@ -185,7 +185,6 @@ int main()
         fflush(stdout);
         
         // TEST 3: Write shellcode to allocated memory
-        
         printf("\n=== TEST 3: Writing to allocated memory ===\n");
         fflush(stdout);
         
@@ -211,7 +210,6 @@ int main()
         }
         
         // TEST 4: Create thread to execute shellcode
-      
         printf("\n=== TEST 4: Creating thread (simulates execution) ===\n");
         fflush(stdout);
         
@@ -231,7 +229,6 @@ int main()
             fflush(stdout);
             
             // Wait a bit for thread to execute
-
             WaitForSingleObject(hThread, 100);
             nt.CloseHandle(hThread);
             printf("Thread executed and closed\n");
@@ -250,7 +247,6 @@ int main()
     }
     
     // Cleanup
-  
     printf("\n=== Cleanup ===\n");
     fflush(stdout);
     nt.CloseHandle(hCurrentProcess);
