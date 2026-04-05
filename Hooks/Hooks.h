@@ -51,8 +51,8 @@ pNtCreateThreadEx OriginalNtCreateThreadEx = nullptr;
 
 NTSTATUS NTAPI HookNtCreateThreadEx(
     PHANDLE ThreadHandle,
-    ACCESS_MASK DesiredAccess,
-    POBJECT_ATTRIBUTES ObjectAttributes,
+    ACCESS_MASK DesiredAcces,
+    POBJECT_ATTRIBUTES ObjectAtrributes,
     HANDLE ProcessHandle,
     PVOID StartAddress,
     PVOID Parameter,

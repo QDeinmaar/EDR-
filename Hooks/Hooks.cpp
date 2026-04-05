@@ -43,3 +43,87 @@ NTSTATUS NTAPI HookNtWriteVirtualMemory
         
         return status;
 }
+
+NTSTATUS NTAPI HookNtCreateThreadEx
+(   
+    PHANDLE ThreadHandle, ACCESS_MASK DesiredAcces,
+    POBJECT_ATTRIBUTES ObjectAtrributes, HANDLE ProcessHandle,
+    PVOID StartAddress, PVOID Parameter,
+    ULONG CreateFlags, SIZE_T ZeroBits,
+    SIZE_T StackSize, SIZE_T MaximumStackSize,
+    PVOID AttrributeList)
+{
+
+    DWORD sourcePid = GetCurrentProcessId();
+
+    DWORD targetPid = NativeAPI::Instance().GetProcessIdFromHandle(ProcessHandle);
+
+    // event
+
+    DetectionEvent event;
+    event.timestamp = GetTickCount64();
+    event.sourcePid = sourcePid;
+    event.targetPid = targetPid;
+    event.operationType = 2; // 2 = CreateThreadEx
+    event.access = DesiredAcces;
+    event.address = StartAddress ? StartAddress : nullptr;
+    event.createFlags = CreateFlags;
+
+    EventCallback callback = NativeAPI::Instance().GetEventCallback();
+        if(callback)
+        {
+            callback(event);
+        }
+
+    // Original
+
+    NTSTATUS status = OriginalNtCreateThreadEx(
+        ThreadHandle, DesiredAcces,
+        ObjectAtrributes, ProcessHandle,
+        (PUSER_THREAD_START_ROUTINE)StartAddress, Parameter,
+        CreateFlags, ZeroBits, StackSize,
+        MaximumStackSize, (PPS_ATTRIBUTE_LIST)AttrributeList // i used explisit cast to match our typedef
+
+    );
+
+    return status;
+}
+
+NTSTATUS NTAPI HookNtAllocateVirtualMemory
+(
+    HANDLE ProcessHandle, PVOID* BaseAddress,
+    ULONG_PTR ZeroBits, PSIZE_T RegionSize,
+    ULONG AllocationType, ULONG PageProtection) 
+{
+    DWORD sourcePid = GetCurrentProcessId();
+
+    DWORD targetPid = NativeAPI::Instance().GetProcessIdFromHandle(ProcessHandle);
+
+    // event 
+
+     DetectionEvent event;
+        event.timestamp = GetTickCount64();
+        event.sourcePid = sourcePid;
+        event.targetPid = targetPid;
+        event.operationType = 3; // 3 = AllocateVirtualMemory
+        event.address = BaseAddress ? *BaseAddress : nullptr;
+        event.size = RegionSize ? *RegionSize : 0;
+        event.allocationType = AllocationType;
+        event.pageProtection = PageProtection;
+
+    //
+
+    EventCallback callback = NativeAPI::Instance().GetEventCallback();
+        if(callback)
+        {
+            callback(event);
+        }
+    
+    NTSTATUS status = OriginalNtAllocateVirtualMemory (
+        ProcessHandle, BaseAddress,
+        ZeroBits, RegionSize, AllocationType,
+        PageProtection
+    );
+
+    return status;
+}
