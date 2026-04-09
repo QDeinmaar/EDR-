@@ -151,6 +151,15 @@ NTSTATUS NTAPI HookNtProtectVirtualMemory(
 
     DWORD targetPid = NativeAPI::Instance().GetProcessIdFromHandle(ProcessHandle);
 
+    // this is a FILTER the ignore the normal protection from popping up
+
+    if(NewProtect != PAGE_EXECUTE_READWRITE && NewProtect != PAGE_EXECUTE_READ)
+    {
+        // we go directly to the original function
+
+        return OriginalNtProtectVirtualMemory(ProcessHandle, BaseAddress, RegionSize, NewProtect, OldProtect);
+    }
+    
     // event 
 
     DetectionEvent event;

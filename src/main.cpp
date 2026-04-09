@@ -33,9 +33,29 @@ DWORD FindLsassPid()
     return 0;
 }
 
-// Your AI callback - this is where detection happens
+//  AI callback - this is where detection happens
 void MyDetectionCallback(const DetectionEvent& event)
 {
+
+    // FILTER the normal protection from popping up ( double protection )
+    // we already Filtred in Hooks.cpp but i prefer do it here too
+
+    if(event.operationType == 4)
+    {
+        if(event.operationType != PAGE_EXECUTE_READWRITE && event.operationType != PAGE_EXECUTE_READ)
+        {
+            return; // Nothing popp up 
+        }
+    }
+
+    // We ignore operations on our self but not CreateThreadEx
+
+    if(event.operationType != 2 && event.sourcePid == event.targetPid)
+    {
+        return; // Nothing popp up
+    }
+
+
     printf("\n========================================\n");
     printf("[EDR] Detection Event\n");
     printf("========================================\n");
