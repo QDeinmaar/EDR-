@@ -204,3 +204,25 @@ typedef VOID (NTAPI* pRtlInitUnicodeString)(
 );
 
 // this is just to Initialize a UNICODE String
+
+// ====== High-Level API (Kernel32) ======
+
+// ReadProcessMemory
+
+typedef BOOL (WINAPI* pReadProcessMemory)(
+    HANDLE hProcess,
+    LPCVOID lpBaseAddress,
+    LPVOID lpBuffer,
+    SIZE_T nSize,
+    SIZE_T* lpNumberOfBytesRead
+);
+
+// VirtualProtectEx
+
+typedef BOOL (WINAPI* pVirtualProtectEx)(
+    HANDLE hProcess,
+    LPVOID lpAddress,
+    SIZE_T dwSize,
+    DWORD flNewProtect,
+    PDWORD lpflOldProtect
+);
