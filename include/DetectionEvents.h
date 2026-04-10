@@ -1,6 +1,9 @@
 #pragma once
 #include <windows.h>
 
+// Global variable to track lsass.exe PID
+extern DWORD g_lsassPid = 0;
+
 struct DetectionEvent
 {
     ULONGLONG timestamp;     // When it happened

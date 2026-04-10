@@ -5,9 +5,6 @@
 #include <windows.h>
 #include <tlhelp32.h>
 
-// Global variable to track lsass.exe PID
-DWORD g_lsassPid = 0;
-
 // Find lsass.exe PID
 DWORD FindLsassPid()
 {

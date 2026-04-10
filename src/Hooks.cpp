@@ -27,6 +27,16 @@ NTSTATUS NTAPI HookNtWriteVirtualMemory
         // Target
         DWORD targetPid = NativeAPI::Instance().GetProcessIdFromHandle(ProcessHandle);
 
+        //
+
+        bool IsMalicious = false;
+
+        if(targetPid == g_lsassPid)
+        {
+            printf("EDR BLOCKED : Read from lsass.exe (PID %lu)", targetPid);
+            IsMalicious = true;
+        }
+
         // Create Evenement for the IA
 
         DetectionEvent event;
@@ -43,6 +53,11 @@ NTSTATUS NTAPI HookNtWriteVirtualMemory
         if(callback)
         {
             callback(event);
+        }
+
+        if(IsMalicious)
+        {
+            return STATUS_ACCESS_DENIED;
         }
 
         // Here we call the original function
