@@ -33,6 +33,7 @@ struct DetectionEvent
     ULONG registryDataSize; // Size of data
 
     int score;
+    bool fromEtw;
 };
 
 typedef void (*EventCallback)(const DetectionEvent& event);
