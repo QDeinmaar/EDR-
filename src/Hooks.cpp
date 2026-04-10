@@ -5,6 +5,9 @@
 #include <ntstatus.h>
 #include <windows.h>
 
+static bool g_inHookAlloc = false; // to prevent infinite loop in Alloc
+static bool g_inHookWrite = false;
+static bool g_inHookThread = false;
 
 extern pNtWriteVirtualMemory g_NtWriteVirtualMemory;
 // extern pNtAllocateVirtualMemory g_NtAllocateVirtualMemory;
@@ -25,26 +28,34 @@ pVirtualProtectEx OriginalVirtualProtectEx = nullptr;
 
 // ===========================
 // ===========================
+
+
 NTSTATUS NTAPI HookNtWriteVirtualMemory
 (   HANDLE ProcessHandle, PVOID BaseAddress,
     PVOID Buffer, SIZE_T NumberOfBytesToWrite,
     PSIZE_T NumberOfBytesWritten)
 {
+
+    if(g_inHookWrite)
+    {
+        return OriginalNtWriteVirtualMemory(ProcessHandle, BaseAddress, Buffer, NumberOfBytesToWrite, NumberOfBytesWritten);
+    }
+        g_inHookWrite = true;
+
         // Source
         DWORD sourcePid = GetCurrentProcessId();
 
         // Target
         DWORD targetPid = NativeAPI::Instance().GetProcessIdFromHandle(ProcessHandle);
 
-        //
+        // Scoring System
 
-        bool IsMalicious = false;
+        int score = 0;
+    
+        if(targetPid == g_lsassPid) score += 80;        // Credential dumping
+        if(sourcePid != targetPid) score += 20;         // Remote write
+        if(NumberOfBytesToWrite > 1024) score += 10;    // Large write
 
-        if(targetPid == g_lsassPid)
-        {
-            printf("EDR BLOCKED : Write from lsass.exe (PID %lu)", targetPid);
-            IsMalicious = true;
-        }
 
         // Create Evenement for the IA
 
@@ -55,19 +66,32 @@ NTSTATUS NTAPI HookNtWriteVirtualMemory
         event.operationType = 1; // 1 = WriteVirtualMemory
         event.address = BaseAddress;
         event.size = NumberOfBytesToWrite;
+        event.score = score;
 
         // We send the event to AI
 
         EventCallback callback = NativeAPI::Instance().GetEventCallback();
-        if(callback)
+        if(callback) callback(event);
+
+         // BLOCK BASED ON THE SCORE 
+
+        if(score >= 70)
         {
-            callback(event);
+
+        printf("EDR BLOCKED: Write operation (score=%d)\n", score);
+        return STATUS_ACCESS_DENIED;
+        // we Block
+
+        }
+        else if(score >= 40)
+        {
+
+        printf("EDR ALERT: Write operation (score=%d)\n", score);
+        // We only alert !
+
         }
 
-        if(IsMalicious)
-        {
-            return STATUS_ACCESS_DENIED;
-        }
+
 
         // Here we call the original function
 
@@ -92,17 +116,23 @@ NTSTATUS NTAPI HookNtCreateThreadEx
     PVOID AttrributeList)
 {
 
+    if(g_inHookThread)
+    {
+        return OriginalNtCreateThreadEx(ThreadHandle, DesiredAcces, ObjectAtrributes, ProcessHandle, (PUSER_THREAD_START_ROUTINE)StartAddress, Parameter, CreateFlags, ZeroBits, StackSize, MaximumStackSize, (PPS_ATTRIBUTE_LIST)AttrributeList);
+    }
+    g_inHookThread = true;
+
     DWORD sourcePid = GetCurrentProcessId();
 
     DWORD targetPid = NativeAPI::Instance().GetProcessIdFromHandle(ProcessHandle);
 
-    bool IsMalicious = false;
+    // Scoring System
 
-    if(sourcePid != targetPid)
-    {
-        printf("EDR BLOCKED : Remote thread creation (source : %lu , target : %lu) !\n");
-        IsMalicious = true;
-    }
+    int score = 0;
+    
+    if(sourcePid != targetPid) score += 40;         // Remote thread = injection
+    if(targetPid == g_lsassPid) score += 80;        // Thread dans lsass
+    if(CreateFlags & 0x1) score += 10;              // CREATE_SUSPENDED = suspect
 
     // event
 
@@ -114,17 +144,23 @@ NTSTATUS NTAPI HookNtCreateThreadEx
     event.access = DesiredAcces;
     event.address = StartAddress ? StartAddress : nullptr;
     event.createFlags = CreateFlags;
+    event.score = score;
 
     EventCallback callback = NativeAPI::Instance().GetEventCallback();
-        if(callback)
-        {
-            callback(event);
-        }
+        if(callback) callback(event);
+        
+    // Block Based on the Score
 
-        if(IsMalicious)
-        {
-            return STATUS_ACCESS_DENIED;
-        }
+    if(score >= 70)
+    {
+        printf("EDR BLOCKED: Thread creation (score=%d)\n", score);
+        return STATUS_ACCESS_DENIED;
+    }
+    else if(score >= 40)
+    {
+        printf("EDR ALERT: Thread creation (score=%d)\n", score);
+    }
+
 
     // Original
 
@@ -146,17 +182,25 @@ NTSTATUS NTAPI HookNtAllocateVirtualMemory
     ULONG_PTR ZeroBits, PSIZE_T RegionSize,
     ULONG AllocationType, ULONG PageProtection) 
 {
+
+    if(g_inHookAlloc)
+    {
+        return OriginalNtAllocateVirtualMemory(ProcessHandle, BaseAddress, ZeroBits, RegionSize, AllocationType, PageProtection);
+    }
+    
+    g_inHookAlloc = true;
+
     DWORD sourcePid = GetCurrentProcessId();
 
     DWORD targetPid = NativeAPI::Instance().GetProcessIdFromHandle(ProcessHandle);
 
-    bool IsMalicious = false;
+    // ===== Scoring System =====
 
-    if(PageProtection == PAGE_EXECUTE_READWRITE)
-    {
-        printf("EDR BLOCKED : RWX memory allocation ( size : %llu bytes) !\n", RegionSize ? *RegionSize : 0);
-        IsMalicious = true;
-    }
+    int score = 0;
+    
+    if(PageProtection == PAGE_EXECUTE_READWRITE) score += 30;  // RWX = shellcode
+    if(sourcePid != targetPid) score += 20; // Remote allocation
+    if(AllocationType == MEM_COMMIT) score += 10;  // Real allocation
 
     // event 
 
@@ -169,19 +213,24 @@ NTSTATUS NTAPI HookNtAllocateVirtualMemory
     event.size = RegionSize ? *RegionSize : 0;
     event.allocationType = AllocationType;
     event.pageProtection = PageProtection;
+    event.score = score;
 
     //
 
     EventCallback callback = NativeAPI::Instance().GetEventCallback();
-        if(callback)
-        {
-            callback(event);
-        }
+        if(callback) callback(event);
 
-        if(IsMalicious)
-        {
-            return STATUS_ACCESS_DENIED;
-        }
+        // We Block Based on  the Score !!
+        if(score >= 70)
+    {
+        printf("EDR BLOCKED: RWX allocation (score=%d)\n", score);
+        return STATUS_ACCESS_DENIED;
+    }
+    else if(score >= 40)
+    {
+        printf("EDR ALERT: RWX allocation (score=%d)\n", score);
+    }
+
     
     NTSTATUS status = OriginalNtAllocateVirtualMemory (
         ProcessHandle, BaseAddress,

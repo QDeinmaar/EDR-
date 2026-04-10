@@ -31,4 +31,6 @@ struct DetectionEvent
     const wchar_t* registryValueName;  // Name of registry value
     ULONG registryType;    // REG_SZ, REG_DWORD, etc.
     ULONG registryDataSize; // Size of data
+
+    int score;
 };
