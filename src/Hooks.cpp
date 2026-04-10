@@ -75,7 +75,7 @@ NTSTATUS NTAPI HookNtWriteVirtualMemory
 
          // BLOCK BASED ON THE SCORE 
 
-        if(score >= 70)
+        if(score >= 40)
         {
 
         printf("EDR BLOCKED: Write operation (score=%d)\n", score);
@@ -83,7 +83,7 @@ NTSTATUS NTAPI HookNtWriteVirtualMemory
         // we Block
 
         }
-        else if(score >= 40)
+        else if(score >= 30)
         {
 
         printf("EDR ALERT: Write operation (score=%d)\n", score);
@@ -151,12 +151,12 @@ NTSTATUS NTAPI HookNtCreateThreadEx
         
     // Block Based on the Score
 
-    if(score >= 70)
+    if(score >= 40)
     {
         printf("EDR BLOCKED: Thread creation (score=%d)\n", score);
         return STATUS_ACCESS_DENIED;
     }
-    else if(score >= 40)
+    else if(score >= 30)
     {
         printf("EDR ALERT: Thread creation (score=%d)\n", score);
     }
@@ -221,12 +221,12 @@ NTSTATUS NTAPI HookNtAllocateVirtualMemory
         if(callback) callback(event);
 
         // We Block Based on  the Score !!
-        if(score >= 70)
+        if(score >= 40)
     {
         printf("EDR BLOCKED: RWX allocation (score=%d)\n", score);
         return STATUS_ACCESS_DENIED;
     }
-    else if(score >= 40)
+    else if(score >= 30)
     {
         printf("EDR ALERT: RWX allocation (score=%d)\n", score);
     }
