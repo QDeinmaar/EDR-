@@ -311,159 +311,76 @@ NTSTATUS NTAPI HookNtReadVirtualMemory(
 bool InstallHooks()
 {
 
-    printf("InstallHooks: ENTERED FUNCTION\n");
-    fflush(stdout);
-    // We Initialize MinHook
-
     if(MH_Initialize() != MH_OK)
     {
         printf("EDR failed to Initialize MinHook !\n");
         return false;
     }
-
     printf("InstallHooks: MH_Initialize OK\n");
     fflush(stdout);
 
-    // Global Variables defined in NativeAPI.cpp
-
     OriginalNtWriteVirtualMemory = g_NtWriteVirtualMemory;
     OriginalNtAllocateVirtualMemory = g_NtAllocateVirtualMemory;
-    OriginalNtProtectVirtualMemory = g_NtProtectVirtualMemory;
-    OriginalNtReadVirtualMemory = g_NtReadVirtualMemory;
     OriginalNtCreateThreadEx = g_NtCreateThreadEx;
-
     printf("InstallHooks: Original addresses assigned\n");
     fflush(stdout);
 
-    // We create instance of the hooks
-
+    // Hook NtWriteVirtualMemory
     printf("InstallHooks: Before creating hook for NtWriteVirtualMemory\n");
-fflush(stdout);
-
-printf("InstallHooks: g_NtWriteVirtualMemory = %p\n", g_NtWriteVirtualMemory);
-fflush(stdout);
-
+    fflush(stdout);
+    printf("InstallHooks: g_NtWriteVirtualMemory = %p\n", g_NtWriteVirtualMemory);
+    fflush(stdout);
     if(MH_CreateHook((LPVOID)OriginalNtWriteVirtualMemory, (LPVOID)&HookNtWriteVirtualMemory, NULL) != MH_OK)
     {
         printf("EDR failed to Hook: NtWriteVirtualMemory !\n");
         return false;
     }
+    printf("InstallHooks: Hook NtWriteVirtualMemory OK\n");
+    fflush(stdout);
 
-    //
-    printf("InstallHooks: Hook NtWriteVirtualMemory OK\n");  // ← AJOUTE CETTE LIGNE
-fflush(stdout);
-//
-
+    // Hook NtCreateThreadEx
     if(MH_CreateHook((LPVOID)OriginalNtCreateThreadEx, (LPVOID)&HookNtCreateThreadEx, NULL) != MH_OK)
     {
         printf("EDR failed to Hook : NtCreateThreadEx !\n");
         return false;
     }
-    //
-    printf("InstallHooks: Hook NtWriteVirtualMemory OK\n");
-fflush(stdout);
-//
+    printf("InstallHooks: Hook NtCreateThreadEx OK\n");
+    fflush(stdout);
 
+    // Hook NtAllocateVirtualMemory
     if(MH_CreateHook((LPVOID)OriginalNtAllocateVirtualMemory, (LPVOID)&HookNtAllocateVirtualMemory, NULL) != MH_OK)
     {
         printf("EDR failed to Hook : NtAllocateVirtualMemory !\n");
         return false;
     }
-    //
     printf("InstallHooks: Hook NtAllocateVirtualMemory OK\n");
-fflush(stdout);
-//
-printf("InstallHooks: OriginalNtAllocateVirtualMemory = %p\n", OriginalNtAllocateVirtualMemory);
-fflush(stdout);
+    fflush(stdout);
+    printf("InstallHooks: OriginalNtAllocateVirtualMemory = %p\n", OriginalNtAllocateVirtualMemory);
+    fflush(stdout);
 
-if(MH_CreateHook((LPVOID)OriginalNtReadVirtualMemory, (LPVOID)&HookNtReadVirtualMemory, NULL) != MH_OK)
+    // Activation des hooks
+    printf("InstallHooks: Before enabling hooks\n");
+    fflush(stdout);
+
+    printf("InstallHooks: About to enable NtWriteVirtualMemory...\n");
+    fflush(stdout);
+    if(MH_EnableHook((LPVOID)OriginalNtWriteVirtualMemory) != MH_OK)
     {
-      printf("EDR failed to Hook : NtReadVirtualMemory !\n");
-      return false;
+        printf("EDR failed to enable NtWriteVirtualMemory !\n");
+        return false;
     }
-    
-printf("InstallHooks: Hook NtReadVirtualMemory OK\n");
-fflush(stdout);
 
-
-
-   if(MH_CreateHook((LPVOID)OriginalNtProtectVirtualMemory, (LPVOID)&HookNtProtectVirtualMemory, NULL) != MH_OK)
-   {
-        printf("EDR failed to Hook : NtProtectVirtualMemory !\n");
-       return false;
-   }
-    
-    printf("InstallHooks: Hook NtProtectVirtualMemory OK\n");
-  fflush(stdout);
-
-//
-/*
-printf("InstallHooks: OriginalNtReadVirtualMemory = %p\n", OriginalNtReadVirtualMemory);
-fflush(stdout);
-
-  if(MH_CreateHook((LPVOID)OriginalNtReadVirtualMemory, (LPVOID)&HookNtReadVirtualMemory, NULL) != MH_OK)
+    if(MH_EnableHook((LPVOID)OriginalNtCreateThreadEx) != MH_OK)
     {
-      printf("EDR failed to Hook : NtReadVirtualMemory !\n");
-      return false;
+        printf("EDR failed to enable NtCreateThreadEx !\n");
+        return false;
     }
-    
-printf("InstallHooks: Hook NtReadVirtualMemory OK\n");
-fflush(stdout);
-*/
-//
 
-//
-printf("InstallHooks: Before enabling hooks\n");
-fflush(stdout);
-// // //
-printf("InstallHooks: About to enable NtWriteVirtualMemory...\n");
-fflush(stdout);
-// Activer chaque hook individuellement
-if(MH_EnableHook((LPVOID)OriginalNtWriteVirtualMemory) != MH_OK)
-{
-    printf("EDR failed to enable NtWriteVirtualMemory !\n");
-    return false;
-}
-printf("InstallHooks: Enabled NtWriteVirtualMemory\n");
-fflush(stdout);
-
-if(MH_EnableHook((LPVOID)OriginalNtCreateThreadEx) != MH_OK)
-{
-    printf("EDR failed to enable NtCreateThreadEx !\n");
-    return false;
-}
-printf("InstallHooks: Enabled NtCreateThreadEx\n");
-fflush(stdout);
-
-if(MH_EnableHook((LPVOID)OriginalNtAllocateVirtualMemory) != MH_OK)
-{
-    printf("EDR failed to enable NtAllocateVirtualMemory !\n");
-    return false;
-}
-printf("InstallHooks: Enabled NtAllocateVirtualMemory\n");
-fflush(stdout);
-/*
-if(MH_EnableHook((LPVOID)OriginalNtReadVirtualMemory) != MH_OK)
-{
-  printf("EDR failed to enable NtReadVirtualMemory !\n");
-   return false;
-}
-printf("InstallHooks: Enabled NtReadVirtualMemory\n");
-fflush(stdout);
-*/
-
-if(MH_EnableHook((LPVOID)OriginalNtProtectVirtualMemory) != MH_OK)
-{
-   printf("EDR failed to enable NtProtectVirtualMemory !\n");
-   return false;
-}
-printf("InstallHooks: Enabled NtProtectVirtualMemory\n");
-fflush(stdout);
-
-// // //
-    printf("InstallHooks: MH_EnableHook OK\n");
-fflush(stdout);
-//
+    if(MH_EnableHook((LPVOID)OriginalNtAllocateVirtualMemory) != MH_OK)
+    {
+        printf("EDR failed to enable NtAllocateVirtualMemory !\n");
+        return false;
+    }
 
     printf("EDR: All the Hooks installed successfully !\n");
     return true;
