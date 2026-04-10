@@ -2,6 +2,7 @@
 #include "DetectionEvents.h" 
 #include "NativeAPI.h"
 #include <iostream>
+#include <ntstatus.h>
 #include <windows.h>
 
 // ===========================
@@ -159,7 +160,15 @@ NTSTATUS NTAPI HookNtProtectVirtualMemory(
 
         return OriginalNtProtectVirtualMemory(ProcessHandle, BaseAddress, RegionSize, NewProtect, OldProtect);
     }
-    
+
+    bool IsMalicious = false;
+
+    if(NewProtect == PAGE_EXECUTE_READWRITE)
+    {
+        printf("EDR BLOCKED : RWX protection has been detected !\n");
+        IsMalicious = true;
+    }
+
     // event 
 
     DetectionEvent event;
@@ -178,6 +187,11 @@ NTSTATUS NTAPI HookNtProtectVirtualMemory(
         {
             callback(event);
         }
+
+    if(IsMalicious)
+    {
+        return STATUS_ACCESS_DENIED;
+    }
     
     //
 
