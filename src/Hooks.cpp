@@ -33,7 +33,7 @@ NTSTATUS NTAPI HookNtWriteVirtualMemory
 
         if(targetPid == g_lsassPid)
         {
-            printf("EDR BLOCKED : Read from lsass.exe (PID %lu)", targetPid);
+            printf("EDR BLOCKED : Write from lsass.exe (PID %lu)", targetPid);
             IsMalicious = true;
         }
 
@@ -87,6 +87,14 @@ NTSTATUS NTAPI HookNtCreateThreadEx
 
     DWORD targetPid = NativeAPI::Instance().GetProcessIdFromHandle(ProcessHandle);
 
+    bool IsMalicious = false;
+
+    if(sourcePid != targetPid)
+    {
+        printf("EDR BLOCKED : Remote thread creation (source : %lu , target : %lu) !\n");
+        IsMalicious = true;
+    }
+
     // event
 
     DetectionEvent event;
@@ -102,6 +110,11 @@ NTSTATUS NTAPI HookNtCreateThreadEx
         if(callback)
         {
             callback(event);
+        }
+
+        if(IsMalicious)
+        {
+            return STATUS_ACCESS_DENIED;
         }
 
     // Original
@@ -128,6 +141,14 @@ NTSTATUS NTAPI HookNtAllocateVirtualMemory
 
     DWORD targetPid = NativeAPI::Instance().GetProcessIdFromHandle(ProcessHandle);
 
+    bool IsMalicious = false;
+
+    if(PageProtection == PAGE_EXECUTE_READWRITE)
+    {
+        printf("EDR BLOCKED : RWX memory allocation ( size : %llu bytes) !\n", RegionSize ? *RegionSize : 0);
+        IsMalicious = true;
+    }
+
     // event 
 
     DetectionEvent event;
@@ -146,6 +167,11 @@ NTSTATUS NTAPI HookNtAllocateVirtualMemory
         if(callback)
         {
             callback(event);
+        }
+
+        if(IsMalicious)
+        {
+            return STATUS_ACCESS_DENIED;
         }
     
     NTSTATUS status = OriginalNtAllocateVirtualMemory (
@@ -231,6 +257,13 @@ NTSTATUS NTAPI HookNtReadVirtualMemory(
 
     DWORD targetPid = NativeAPI::Instance().GetProcessIdFromHandle(ProcessHandle);
 
+    bool IsMalicious = false;
+    if(targetPid == g_lsassPid)
+    {
+        printf("EDR BLOCKED : Read from lsass.exe (PID %lu) !\n", targetPid);
+        IsMalicious = true;
+    }
+
     // event 
 
     DetectionEvent event;
@@ -248,6 +281,11 @@ NTSTATUS NTAPI HookNtReadVirtualMemory(
         {
             callback(event);
         }
+
+    if(IsMalicious)
+    {
+        return STATUS_ACCESS_DENIED;
+    }
 
     //
 
