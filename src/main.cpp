@@ -32,28 +32,23 @@ DWORD FindLsassPid()
     return 0;
 }
 
-//  AI callback - this is where detection happens
+// AI callback - this is where detection happens
 void MyDetectionCallback(const DetectionEvent& event)
 {
-
-    // FILTER the normal protection from popping up ( double protection )
-    // we already Filtred in Hooks.cpp but i prefer do it here too
-
+    // FILTER the normal protection from popping up (double protection)
     if(event.operationType == 4)
     {
-        if(event.operationType != PAGE_EXECUTE_READWRITE && event.operationType != PAGE_EXECUTE_READ)
+        if(event.pageProtection != PAGE_EXECUTE_READWRITE && event.pageProtection != PAGE_EXECUTE_READ)
         {
-            return; // Nothing popp up 
+            return;
         }
     }
 
     // We ignore operations on our self but not CreateThreadEx
-
     if(event.operationType != 2 && event.sourcePid == event.targetPid)
     {
-        return; // Nothing popp up
+        return;
     }
-
 
     printf("\n========================================\n");
     printf("[EDR] Detection Event\n");
@@ -150,21 +145,24 @@ int main()
     printf("NativeAPI initialized successfully!\n");
     fflush(stdout);
     
-    // Register detection callback
-    nt.SetEventCallback(MyDetectionCallback);
-    printf("DEBUG: Callback registered at address %p\n", MyDetectionCallback);
-    fflush(stdout);
-    printf("Detection callback registered\n\n");
-    fflush(stdout);
-
     // ============================================
-    // INSTALLER LES HOOKS ICI
+    // INSTALL HOOKS IMMÉDIATEMENT (avant callback)
     // ============================================
     if (!InstallHooks())
     {
         printf("ERROR: Failed to install hooks!\n");
         return 1;
     }
+    
+    printf("Hooks installed successfully!\n");
+    fflush(stdout);
+    
+    // Register detection callback
+    nt.SetEventCallback(MyDetectionCallback);
+    printf("DEBUG: Callback registered at address %p\n", MyDetectionCallback);
+    fflush(stdout);
+    printf("Detection callback registered\n\n");
+    fflush(stdout);
 
     // ============================================
     // TESTS
@@ -207,7 +205,7 @@ int main()
         printf("\n=== TEST 3: Writing to allocated memory ===\n");
         fflush(stdout);
         
-        unsigned char shellcode[] = {0x90, 0x90, 0x90, 0xCC}; // NOPs and int3
+        unsigned char shellcode[] = {0x90, 0x90, 0x90, 0xCC};
         SIZE_T written = 0;
         status = nt.WriteVirtualMemory(
             hCurrentProcess,
@@ -247,7 +245,6 @@ int main()
             printf("Thread created at entry point 0x%p\n", memAddress);
             fflush(stdout);
             
-            // Wait a bit for thread to execute
             WaitForSingleObject(hThread, 100);
             nt.CloseHandle(hThread);
             printf("Thread executed and closed\n");
