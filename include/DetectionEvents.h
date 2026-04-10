@@ -34,3 +34,5 @@ struct DetectionEvent
 
     int score;
 };
+
+typedef void (*EventCallback)(const DetectionEvent& event);

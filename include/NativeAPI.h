@@ -2,8 +2,6 @@
 #include "NativeType.h"
 #include "DetectionEvents.h"
 
-typedef void (*EventCallback)(const DetectionEvent& event);
-
 class NativeAPI {
     public:
     static NativeAPI& Instance(); // Singleton access

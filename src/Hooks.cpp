@@ -91,8 +91,6 @@ NTSTATUS NTAPI HookNtWriteVirtualMemory
 
         }
 
-
-
         // Here we call the original function
 
         NTSTATUS status = OriginalNtWriteVirtualMemory(
