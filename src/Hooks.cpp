@@ -17,9 +17,11 @@ extern pNtCreateThreadEx g_NtCreateThreadEx;
 
 pNtWriteVirtualMemory OriginalNtWriteVirtualMemory = nullptr;
 pNtAllocateVirtualMemory OriginalNtAllocateVirtualMemory = nullptr;
-pNtProtectVirtualMemory OriginalNtProtectVirtualMemory = nullptr;
-pNtReadVirtualMemory OriginalNtReadVirtualMemory = nullptr;
+pNtProtectVirtualMemory OriginalNtProtectVirtualMemory = nullptr; // we dont use it no more (maybe in the future)
+pNtReadVirtualMemory OriginalNtReadVirtualMemory = nullptr; // we dont use it no more ( maybe in the future)
 pNtCreateThreadEx OriginalNtCreateThreadEx = nullptr;
+pReadProcessMemory OriginalReadProcessMemory = nullptr;
+pVirtualProtectEx OriginalVirtualProtectEx = nullptr;
 
 // ===========================
 // ===========================
@@ -189,7 +191,7 @@ NTSTATUS NTAPI HookNtAllocateVirtualMemory
 
     return status;
 }
-
+/*
 NTSTATUS NTAPI HookNtProtectVirtualMemory(
     HANDLE ProcessHandle, PVOID* BaseAddress,
     PSIZE_T RegionSize, ULONG NewProtect,
@@ -303,6 +305,90 @@ NTSTATUS NTAPI HookNtReadVirtualMemory(
     );
     
     return status;
+}
+*/
+
+// ===================================
+// I Addes this ones to try to fix the problem in Proect and Read
+// ===================================
+
+BOOL WINAPI HookReadProcessMemory(
+    HANDLE hProcess,
+    LPCVOID lpBaseAddress,
+    LPVOID lpBuffer,
+    SIZE_T nSize,
+    SIZE_T* lpNumberOfBytesRead
+)
+{
+    DWORD sourcePid = GetCurrentProcessId();
+    DWORD targetPid = NativeAPI::Instance().GetProcessIdFromHandle(hProcess);
+
+    bool IsMalicious = (targetPid == g_lsassPid);
+
+    if(IsMalicious)
+    {
+        printf("EDR BLOCKED: ReadProcessMemory on lsass.exe\n");
+    }
+
+    DetectionEvent event{};
+    event.timestamp = GetTickCount64();
+    event.sourcePid = sourcePid;
+    event.targetPid = targetPid;
+    event.operationType = 5;
+    event.address = (PVOID)lpBaseAddress;
+    event.size = nSize;
+
+    auto callback = NativeAPI::Instance().GetEventCallback();
+    if(callback) callback(event);
+
+    if(IsMalicious)
+        return FALSE;
+
+    return OriginalReadProcessMemory(
+        hProcess, lpBaseAddress,
+        lpBuffer, nSize,
+        lpNumberOfBytesRead
+    );
+}
+
+BOOL WINAPI HookVirtualProtectEx(
+    HANDLE hProcess,
+    LPVOID lpAddress,
+    SIZE_T dwSize,
+    DWORD flNewProtect,
+    PDWORD lpflOldProtect
+)
+{
+    DWORD sourcePid = GetCurrentProcessId();
+    DWORD targetPid = NativeAPI::Instance().GetProcessIdFromHandle(hProcess);
+
+    bool IsMalicious = (flNewProtect == PAGE_EXECUTE_READWRITE);
+
+    if(IsMalicious)
+    {
+        printf("EDR BLOCKED: RWX via VirtualProtectEx\n");
+    }
+
+    DetectionEvent event{};
+    event.timestamp = GetTickCount64();
+    event.sourcePid = sourcePid;
+    event.targetPid = targetPid;
+    event.operationType = 4;
+    event.address = lpAddress;
+    event.size = dwSize;
+    event.pageProtection = flNewProtect;
+
+    auto callback = NativeAPI::Instance().GetEventCallback();
+    if(callback) callback(event);
+
+    if(IsMalicious)
+        return FALSE;
+
+    return OriginalVirtualProtectEx(
+        hProcess, lpAddress,
+        dwSize, flNewProtect,
+        lpflOldProtect
+    );
 }
 
 // ===================================
