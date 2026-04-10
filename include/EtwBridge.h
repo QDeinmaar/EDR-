@@ -15,7 +15,7 @@ private:
     static DWORD WINAPI EtwThreadProc(LPVOID param);
     static void WINAPI EventRecordCallback(PEVENT_RECORD pEvent);
     
-    static EventCallback s_userCallback;  // Ton callback DetectionEvent
+    static EventCallback s_userCallback;  // The callback for DetectionEvent
     static bool s_running;
     static HANDLE s_hThread;
     static TRACEHANDLE s_hTrace;
