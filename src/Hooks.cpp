@@ -459,6 +459,7 @@ bool InstallHooks()
     fflush(stdout);
 
     // =======
+    /*
     if(MH_CreateHook((LPVOID)OriginalReadProcessMemory, (LPVOID)&HookReadProcessMemory, NULL) != MH_OK)
     {
         printf("EDR failed to Hook : ReadProcessMemory !\n");
@@ -470,7 +471,7 @@ bool InstallHooks()
         printf("EDR failed to Hook : VirtualProtectEx !\n");
         return false;
     }
-
+*/
     // Activation des hooks
 
     if(MH_EnableHook((LPVOID)OriginalNtWriteVirtualMemory) != MH_OK)
