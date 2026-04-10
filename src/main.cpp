@@ -5,6 +5,8 @@
 #include <windows.h>
 #include <tlhelp32.h>
 
+DWORD g_lsassPid = 0;
+
 // Find lsass.exe PID
 DWORD FindLsassPid()
 {
