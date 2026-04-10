@@ -7,8 +7,8 @@
 
 
 extern pNtWriteVirtualMemory g_NtWriteVirtualMemory;
-extern pNtAllocateVirtualMemory g_NtAllocateVirtualMemory;
-extern pNtProtectVirtualMemory g_NtProtectVirtualMemory;
+// extern pNtAllocateVirtualMemory g_NtAllocateVirtualMemory;
+// extern pNtProtectVirtualMemory g_NtProtectVirtualMemory;
 extern pNtReadVirtualMemory g_NtReadVirtualMemory;
 extern pNtCreateThreadEx g_NtCreateThreadEx;
 
@@ -17,8 +17,8 @@ extern pNtCreateThreadEx g_NtCreateThreadEx;
 
 pNtWriteVirtualMemory OriginalNtWriteVirtualMemory = nullptr;
 pNtAllocateVirtualMemory OriginalNtAllocateVirtualMemory = nullptr;
-pNtProtectVirtualMemory OriginalNtProtectVirtualMemory = nullptr; // we dont use it no more (maybe in the future)
-pNtReadVirtualMemory OriginalNtReadVirtualMemory = nullptr; // we dont use it no more ( maybe in the future)
+// pNtProtectVirtualMemory OriginalNtProtectVirtualMemory = nullptr; we dont use it no more (maybe in the future)
+// pNtReadVirtualMemory OriginalNtReadVirtualMemory = nullptr; we dont use it no more ( maybe in the future)
 pNtCreateThreadEx OriginalNtCreateThreadEx = nullptr;
 pReadProcessMemory OriginalReadProcessMemory = nullptr;
 pVirtualProtectEx OriginalVirtualProtectEx = nullptr;
@@ -402,20 +402,34 @@ bool InstallHooks()
         printf("EDR failed to Initialize MinHook !\n");
         return false;
     }
-    printf("InstallHooks: MH_Initialize OK\n");
-    fflush(stdout);
+
+    // Original Nt
 
     OriginalNtWriteVirtualMemory = g_NtWriteVirtualMemory;
     OriginalNtAllocateVirtualMemory = g_NtAllocateVirtualMemory;
     OriginalNtCreateThreadEx = g_NtCreateThreadEx;
-    printf("InstallHooks: Original addresses assigned\n");
-    fflush(stdout);
+    
+    // Load Kernel32 (New Hooks)
+
+    HMODULE hKernel32 = GetModuleHandleA("kernel32.dll");
+
+    if (!hKernel32)
+{
+    printf("Failed to get kernel32.dll\n");
+    return false;
+}
+
+    OriginalReadProcessMemory = (pReadProcessMemory)GetProcAddress(hKernel32, "ReadProcessMemory");
+    OriginalVirtualProtectEx = (pVirtualProtectEx)GetProcAddress(hKernel32, "VirtualProtectEx");
+
+    if (!OriginalReadProcessMemory || !OriginalVirtualProtectEx)
+    {
+        printf("Kernel32 load failed\n");
+        return false;
+    }
 
     // Hook NtWriteVirtualMemory
-    printf("InstallHooks: Before creating hook for NtWriteVirtualMemory\n");
-    fflush(stdout);
-    printf("InstallHooks: g_NtWriteVirtualMemory = %p\n", g_NtWriteVirtualMemory);
-    fflush(stdout);
+    
     if(MH_CreateHook((LPVOID)OriginalNtWriteVirtualMemory, (LPVOID)&HookNtWriteVirtualMemory, NULL) != MH_OK)
     {
         printf("EDR failed to Hook: NtWriteVirtualMemory !\n");
@@ -444,12 +458,21 @@ bool InstallHooks()
     printf("InstallHooks: OriginalNtAllocateVirtualMemory = %p\n", OriginalNtAllocateVirtualMemory);
     fflush(stdout);
 
-    // Activation des hooks
-    printf("InstallHooks: Before enabling hooks\n");
-    fflush(stdout);
+    // =======
+    if(MH_CreateHook((LPVOID)OriginalReadProcessMemory, (LPVOID)&HookReadProcessMemory, NULL) != MH_OK)
+    {
+        printf("EDR failed to Hook : ReadProcessMemory !\n");
+        return false;
+    }
 
-    printf("InstallHooks: About to enable NtWriteVirtualMemory...\n");
-    fflush(stdout);
+    if(MH_CreateHook((LPVOID)OriginalVirtualProtectEx, (LPVOID)&HookVirtualProtectEx, NULL) != MH_OK)
+    {
+        printf("EDR failed to Hook : VirtualProtectEx !\n");
+        return false;
+    }
+
+    // Activation des hooks
+
     if(MH_EnableHook((LPVOID)OriginalNtWriteVirtualMemory) != MH_OK)
     {
         printf("EDR failed to enable NtWriteVirtualMemory !\n");
@@ -467,6 +490,30 @@ bool InstallHooks()
         printf("EDR failed to enable NtAllocateVirtualMemory !\n");
         return false;
     }
+
+    printf("InstallHooks: About to enable ReadProcessMemory...\n");
+fflush(stdout);
+
+    if(MH_EnableHook((LPVOID)OriginalReadProcessMemory) != MH_OK)
+    {
+        printf("EDR failed to enable ReadProcessMemory !\n");
+        return false;
+    }
+
+    printf("InstallHooks: Enabled ReadProcessMemory\n");
+fflush(stdout);
+
+    printf("InstallHooks: About to enable VirtualProtectEx...\n");
+fflush(stdout);
+
+    if(MH_EnableHook((LPVOID)OriginalVirtualProtectEx) != MH_OK)
+    {
+        printf("EDR failed to enable VirtualProtectMemory !\n");
+        return false;
+    }
+
+    printf("InstallHooks: Enabled VirtualProtectEx\n");
+fflush(stdout);
 
     printf("EDR: All the Hooks installed successfully !\n");
     return true;
