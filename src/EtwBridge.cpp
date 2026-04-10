@@ -1,6 +1,7 @@
 #include "EtwBridge.h"
 #include <stdio.h>
 #include <strsafe.h>
+#include <ntstatus.h>
 
 #pragma comment(lib, "tdh.lib")
 
@@ -49,7 +50,7 @@ DWORD WINAPI EtwBridge::EtwThreadProc(LPVOID) {
     pProps->LoggerNameOffset = sizeof(EVENT_TRACE_PROPERTIES);
     StringCbCopyW((wchar_t*)(buffer + pProps->LoggerNameOffset), 256, L"EDR-TI");
     
-    status = StartTrace(&hSession, L"EDR-TI", pProps);
+    status = StartTrace(&hSession, "EDR-TI", pProps);
     if (status != ERROR_SUCCESS && status != ERROR_ALREADY_EXISTS) {
         printf("[ETW] StartTrace failed: %lu\n", status);
         return 1;
@@ -61,21 +62,21 @@ DWORD WINAPI EtwBridge::EtwThreadProc(LPVOID) {
     
     // Consumer
     EVENT_TRACE_LOGFILE log = {0};
-    log.LoggerName = (LPWSTR)L"EDR-TI";
+    log.LoggerName = "EDR-TI";
     log.ProcessTraceMode = PROCESS_TRACE_MODE_REAL_TIME | PROCESS_TRACE_MODE_EVENT_RECORD;
     log.EventRecordCallback = EventRecordCallback;
     
     s_hTrace = OpenTrace(&log);
     if (s_hTrace == INVALID_PROCESSTRACE_HANDLE) {
         printf("[ETW] OpenTrace failed\n");
-        ControlTrace(hSession, L"EDR-TI", pProps, EVENT_TRACE_CONTROL_STOP);
+        ControlTrace(hSession, "EDR-TI", pProps, EVENT_TRACE_CONTROL_STOP);
         return 1;
     }
     
     printf("[ETW] Monitor started\n");
     ProcessTrace(&s_hTrace, 1, 0, 0);
     
-    ControlTrace(hSession, L"EDR-TI", pProps, EVENT_TRACE_CONTROL_STOP);
+    ControlTrace(hSession, "EDR-TI", pProps, EVENT_TRACE_CONTROL_STOP);
     return 0;
 }
 
