@@ -490,31 +490,19 @@ bool InstallHooks()
         printf("EDR failed to enable NtAllocateVirtualMemory !\n");
         return false;
     }
-
-    printf("InstallHooks: About to enable ReadProcessMemory...\n");
-fflush(stdout);
-
+/*
     if(MH_EnableHook((LPVOID)OriginalReadProcessMemory) != MH_OK)
     {
         printf("EDR failed to enable ReadProcessMemory !\n");
         return false;
     }
 
-    printf("InstallHooks: Enabled ReadProcessMemory\n");
-fflush(stdout);
-
-    printf("InstallHooks: About to enable VirtualProtectEx...\n");
-fflush(stdout);
-
     if(MH_EnableHook((LPVOID)OriginalVirtualProtectEx) != MH_OK)
     {
         printf("EDR failed to enable VirtualProtectMemory !\n");
         return false;
     }
-
-    printf("InstallHooks: Enabled VirtualProtectEx\n");
-fflush(stdout);
-
+*/
     printf("EDR: All the Hooks installed successfully !\n");
     return true;
 }
