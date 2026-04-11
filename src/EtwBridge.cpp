@@ -4,6 +4,8 @@
 #include <strsafe.h>
 #include <ntstatus.h>
 
+HANDLE EtwBridge::s_hThread = NULL;
+
 bool IsSystemProcess(DWORD pid)
 {
     if (pid == 0 || pid == 4) return true; // Idle et System
