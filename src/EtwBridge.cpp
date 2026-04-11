@@ -62,7 +62,8 @@ DWORD WINAPI EtwBridge::EtwThreadProc(LPVOID) {
     
     // Consumer
     EVENT_TRACE_LOGFILE log = {0};
-    log.LoggerName = "EDR-TI";
+    char loggerName[] = "EDR-TI";
+    log.LoggerName = loggerName;
     log.ProcessTraceMode = PROCESS_TRACE_MODE_REAL_TIME | PROCESS_TRACE_MODE_EVENT_RECORD;
     log.EventRecordCallback = EventRecordCallback;
     
@@ -89,7 +90,7 @@ void WINAPI EtwBridge::EventRecordCallback(PEVENT_RECORD pEvent) {
     DWORD targetPid = 0;
     
     // Extraction PID cible depuis UserData
-    // Structure TI: [SourcePID][TargetPID][...]
+
     if (pEvent->UserDataLength >= 8) {
         targetPid = *(DWORD*)((BYTE*)pEvent->UserData + 4);
     }
@@ -102,6 +103,7 @@ void WINAPI EtwBridge::EventRecordCallback(PEVENT_RECORD pEvent) {
     evt.status = STATUS_SUCCESS;      // L'opération a eu lieu (on kill après)
     
     // Mapping Event ID TI → ton operationType
+    
     switch(hdr.EventDescriptor.Id) {
         case 1: // AllocVMRemote
             evt.operationType = 3;    // 3=Allocate dans ta convention

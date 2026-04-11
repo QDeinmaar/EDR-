@@ -3,8 +3,6 @@
 
 // Global variable to track lsass.exe PID
 extern DWORD g_lsassPid;
-extern pReadProcessMemory OriginalReadProcessMemory;
-extern pVirtualProtectEx OriginalVirtualProtectEx;
 
 struct DetectionEvent
 {

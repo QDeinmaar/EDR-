@@ -7,7 +7,7 @@
 // Thread ETW qui alimente ton DetectionEvent existant
 class EtwBridge {
 public:
-    bool Start(EventCallback callback);  // Ton callback existant
+    bool Start(EventCallback callback);  // The Existed callback 
     void Stop();
     bool IsRunning() const { return m_running; }
     
