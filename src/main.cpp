@@ -6,9 +6,30 @@
 #include <windows.h>
 #include <tlhelp32.h>
 
-
-
 DWORD g_lsassPid = 0;
+
+// Élever les privilèges pour ETW
+bool EnableDebugPrivilege() {
+    HANDLE hToken;
+    TOKEN_PRIVILEGES tp;
+    LUID luid;
+    
+    if (!OpenProcessToken(GetCurrentProcess(), TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY, &hToken))
+        return false;
+    
+    if (!LookupPrivilegeValue(NULL, SE_DEBUG_NAME, &luid)) {
+        CloseHandle(hToken);
+        return false;
+    }
+    
+    tp.PrivilegeCount = 1;
+    tp.Privileges[0].Luid = luid;
+    tp.Privileges[0].Attributes = SE_PRIVILEGE_ENABLED;
+    
+    bool success = AdjustTokenPrivileges(hToken, FALSE, &tp, sizeof(tp), NULL, NULL);
+    CloseHandle(hToken);
+    return success && GetLastError() == ERROR_SUCCESS;
+}
 
 // Find lsass.exe PID
 DWORD FindLsassPid()
@@ -54,8 +75,14 @@ void OnDetection(const DetectionEvent& evt) {
 }
 
 int main() {
+    // Élever les privilèges
+    if (!EnableDebugPrivilege()) {
+        printf("[-] Failed to enable debug privilege\n");
+    } else {
+        printf("[+] Debug privilege enabled\n");
+    }
     
-     printf("========================================\n");
+    printf("========================================\n");
     printf("       EDR - Endpoint Detection Response\n");
     printf("========================================\n\n");
     
@@ -94,5 +121,4 @@ int main() {
     printf("[+] EDR stopped.\n");
     
     return 0;
-
 }

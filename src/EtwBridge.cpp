@@ -7,8 +7,8 @@
 
 // GUID Microsoft-Windows-Threat-Intelligence
 // {F4E1897C-BB5D-5668-F1D8-040F4D8DD344}
-static const GUID g_TI = {0xf4e1897c, 0xbb5d, 0x5668, {0xf1, 0xd8, 0x04, 0x0f, 0x4d, 0x8d, 0xd3, 0x44}};
-
+static const GUID g_Provider = 
+    { 0x22fb2cd6, 0x0e7b, 0x422b, { 0xa0, 0xc7, 0x2f, 0xad, 0x1f, 0xd0, 0xe7, 0x16 } };
 // Variables statiques
 EventCallback EtwBridge::s_userCallback = nullptr;
 std::atomic<bool> EtwBridge::s_running{false};
@@ -72,7 +72,7 @@ void EtwBridge::EtwThreadProc() {
     }
     
     // Activer le provider Threat Intelligence
-    EnableTraceEx2(hSession, &g_TI, EVENT_CONTROL_CODE_ENABLE_PROVIDER,
+    EnableTraceEx2(hSession, &g_Provider, EVENT_CONTROL_CODE_ENABLE_PROVIDER,
                    TRACE_LEVEL_INFORMATION, 0, 0xFFFFFFFFFFFFFFFFULL, 0, NULL);
     
     // Ouvrir la trace pour recevoir les événements
@@ -96,7 +96,7 @@ void EtwBridge::EtwThreadProc() {
 }
 
 void WINAPI EtwBridge::EventRecordCallback(PEVENT_RECORD pEvent) {
-    if (!IsEqualGUID(pEvent->EventHeader.ProviderId, g_TI)) return;
+    if (!IsEqualGUID(pEvent->EventHeader.ProviderId, g_Provider)) return;
     if (!s_userCallback) return;
     
     const EVENT_HEADER& hdr = pEvent->EventHeader;
