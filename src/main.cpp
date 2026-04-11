@@ -115,6 +115,7 @@ int main() {
     printf("\n[+] EDR is RUNNING and protecting the system...\n");
     printf("[+] Press Enter to stop.\n\n");
     
+    printf("DEBUG: Arrived at getchar()\n");
     getchar();
     
     etw.Stop();

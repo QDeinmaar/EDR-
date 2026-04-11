@@ -47,7 +47,13 @@ NTSTATUS NTAPI HookNtWriteVirtualMemory
 
         // Target
         DWORD targetPid = NativeAPI::Instance().GetProcessIdFromHandle(ProcessHandle);
-
+/*
+        if (targetPid == 0 || targetPid == 4)
+    {
+        return OriginalNtWriteVirtualMemory(ProcessHandle, BaseAddress, Buffer,
+                                             NumberOfBytesToWrite, NumberOfBytesWritten);
+    }
+*/
         // Scoring System
 
         int score = 0;
@@ -124,6 +130,16 @@ NTSTATUS NTAPI HookNtCreateThreadEx
 
     DWORD targetPid = NativeAPI::Instance().GetProcessIdFromHandle(ProcessHandle);
 
+/*
+    if (targetPid == 0 || targetPid == 4)
+    {
+        return OriginalNtCreateThreadEx(ThreadHandle, DesiredAcces, ObjectAtrributes,
+                                         ProcessHandle, (PUSER_THREAD_START_ROUTINE)StartAddress,
+                                         Parameter, CreateFlags, ZeroBits, StackSize,
+                                         MaximumStackSize, (PPS_ATTRIBUTE_LIST)AttrributeList);
+    }
+*/       
+
     // Scoring System
 
     int score = 0;
@@ -191,7 +207,14 @@ NTSTATUS NTAPI HookNtAllocateVirtualMemory
     DWORD sourcePid = GetCurrentProcessId();
 
     DWORD targetPid = NativeAPI::Instance().GetProcessIdFromHandle(ProcessHandle);
-
+/*
+    if (targetPid == 0 || targetPid == 4)
+    {
+        // Appel direct sans logging ni blocage
+        return OriginalNtAllocateVirtualMemory(ProcessHandle, BaseAddress, ZeroBits, 
+                                                RegionSize, AllocationType, PageProtection);
+    }
+*/
     // ===== Scoring System =====
 
     int score = 0;

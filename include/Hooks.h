@@ -75,3 +75,6 @@ NTSTATUS NTAPI HookNtCreateThreadEx(
 
 bool InstallHooks();
 
+bool IsSystemProcess(DWORD pid);
+
+

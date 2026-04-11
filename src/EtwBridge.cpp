@@ -1,7 +1,43 @@
 #include "EtwBridge.h"
+#include <tlhelp32.h>
 #include <stdio.h>
 #include <strsafe.h>
 #include <ntstatus.h>
+
+bool IsSystemProcess(DWORD pid)
+{
+    if (pid == 0 || pid == 4) return true; // Idle et System
+    
+    HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+    if (snapshot == INVALID_HANDLE_VALUE) return false;
+    
+    PROCESSENTRY32 pe32;
+    pe32.dwSize = sizeof(PROCESSENTRY32);
+    
+    bool isSystem = false;
+    if (Process32First(snapshot, &pe32))
+    {
+        do
+        {
+            if (pe32.th32ProcessID == pid)
+            {
+                // Liste des processus système à ignorer
+                if (_stricmp(pe32.szExeFile, "svchost.exe") == 0 ||
+                    _stricmp(pe32.szExeFile, "services.exe") == 0 ||
+                    _stricmp(pe32.szExeFile, "lsass.exe") == 0 ||
+                    _stricmp(pe32.szExeFile, "winlogon.exe") == 0 ||
+                    _stricmp(pe32.szExeFile, "csrss.exe") == 0 ||
+                    _stricmp(pe32.szExeFile, "System") == 0)
+                {
+                    isSystem = true;
+                }
+                break;
+            }
+        } while (Process32Next(snapshot, &pe32));
+    }
+    CloseHandle(snapshot);
+    return isSystem;
+}
 
 #pragma comment(lib, "tdh.lib")
 
@@ -17,19 +53,27 @@ TRACEHANDLE EtwBridge::s_hTrace = 0;
 // Variable externe pour lsass
 extern DWORD g_lsassPid;
 
+DWORD WINAPI EtwBridge::EtwThreadProcStatic(LPVOID param) {
+    EtwBridge* pThis = (EtwBridge*)param;
+    pThis->EtwThreadProc();
+    return 0;
+}
+
 bool EtwBridge::Start(EventCallback callback) {
     if (!callback) return false;
     s_userCallback = callback;
     s_running = true;
     m_running = true;
     
-    try {
-        m_thread = std::thread(&EtwBridge::EtwThreadProc, this);
-        return true;
-    } catch (...) {
-        printf("[ETW] Failed to create thread\n");
+    // Remplacer std::thread par CreateThread
+    s_hThread = CreateThread(NULL, 0, EtwThreadProcStatic, this, 0, NULL);
+    if (!s_hThread)
+    {
+        printf("[ETW] Failed to create thread: %d\n", GetLastError());
         return false;
     }
+    
+    return true;
 }
 
 void EtwBridge::Stop() {

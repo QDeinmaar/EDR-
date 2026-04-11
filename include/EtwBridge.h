@@ -8,11 +8,14 @@
 
 class EtwBridge {
 public:
+
     bool Start(EventCallback callback);
     void Stop();
     bool IsRunning() const { return m_running; }
     
 private:
+
+    static DWORD WINAPI EtwThreadProcStatic(LPVOID param);
     void EtwThreadProc();
     static void WINAPI EventRecordCallback(PEVENT_RECORD pEvent);
     
@@ -22,4 +25,6 @@ private:
     
     std::thread m_thread;
     bool m_running;
+    static HANDLE s_hThread;
+
 };
