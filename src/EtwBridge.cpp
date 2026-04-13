@@ -7,9 +7,8 @@
 
 #pragma comment(lib, "tdh.lib")
 
-// ✅ Provider correct (Kernel Process)
 static const GUID g_Provider =
-{ 0x22fb2cd6, 0x0e7b, 0x422b,{ 0xa0, 0xc7, 0x2f, 0xad, 0x1f, 0xd0, 0xe7, 0x16 } };
+{ 0x22fb2cd6, 0x0e7b, 0x422b, { 0xa0, 0xc7, 0x2f, 0xad, 0x1f, 0xd0, 0xe7, 0x16 } };
 
 // Variables statiques
 TRACEHANDLE EtwBridge::s_hTrace = 0;
@@ -63,7 +62,7 @@ void EtwBridge::Stop()
 
     if (s_hTrace)
     {
-        CloseTrace(s_hTrace);
+        ControlTraceA(0, (LPSTR)"EDRSession", NULL, EVENT_TRACE_CONTROL_STOP);
         s_hTrace = 0;
     }
 
@@ -85,6 +84,9 @@ void EtwBridge::EtwThreadProc()
 
     BYTE buffer[sizeof(EVENT_TRACE_PROPERTIES) + 256] = { 0 };
     EVENT_TRACE_PROPERTIES* pProps = (EVENT_TRACE_PROPERTIES*)buffer;
+    pProps->LogFileMode = EVENT_TRACE_REAL_TIME_MODE;
+    pProps->Wnode.ClientContext = 1;
+    pProps->EnableFlags = EVENT_TRACE_FLAG_PROCESS | EVENT_TRACE_FLAG_THREAD;
 
     pProps->Wnode.BufferSize = sizeof(buffer);
     pProps->Wnode.Flags = WNODE_FLAG_TRACED_GUID;
@@ -122,7 +124,6 @@ void EtwBridge::EtwThreadProc()
 
     printf("[ETW] Session started!\n");
 
-    // ✅ Enable provider
     status = EnableTraceEx2(
         hSession,
         &g_Provider,
@@ -142,7 +143,6 @@ void EtwBridge::EtwThreadProc()
 
     printf("[ETW] Provider enabled!\n");
 
-    // ✅ Open trace
     EVENT_TRACE_LOGFILEA log = { 0 };
     log.LoggerName = (LPSTR)sessionName;
     log.ProcessTraceMode = PROCESS_TRACE_MODE_REAL_TIME | PROCESS_TRACE_MODE_EVENT_RECORD;
@@ -158,7 +158,11 @@ void EtwBridge::EtwThreadProc()
 
     printf("[ETW] Listening for events...\n");
 
-    ProcessTrace(&s_hTrace, 1, NULL, NULL);
+    TRACEHANDLE handles[] = { s_hTrace };
+    while (s_running)
+    {
+        ProcessTrace(handles, 1, NULL, NULL);
+    }
 
     ControlTraceA(hSession, sessionName, pProps, EVENT_TRACE_CONTROL_STOP);
 }
@@ -178,27 +182,25 @@ void WINAPI EtwBridge::EventRecordCallback(PEVENT_RECORD pEvent)
     evt.sourcePid = pid;
     evt.fromEtw = true;
 
-    // 🔥 Mapping simple (Kernel Process events)
-    switch (pEvent->EventHeader.EventDescriptor.Id)
-    {
-    case 1: // Process Start
-        evt.operationType = 10;
-        evt.score = 10;
-        break;
-
-    case 2: // Process Stop
-        evt.operationType = 11;
-        evt.score = 5;
-        break;
-
-    case 3: // Thread Start
-        evt.operationType = 2;
-        evt.score = 20;
-        break;
-
-    default:
-        return;
-    }
+    if (pEvent->EventHeader.EventDescriptor.Opcode == 1)
+{
+    evt.operationType = 10; // process start
+    evt.score = 10;
+}
+else if (pEvent->EventHeader.EventDescriptor.Opcode == 2)
+{
+    evt.operationType = 11; // process stop
+    evt.score = 5;
+}
+else if (pEvent->EventHeader.EventDescriptor.Opcode == 3)
+{
+    evt.operationType = 2; // thread start
+    evt.score = 20;
+}
+else
+{
+    return;
+}
 
     s_userCallback(evt);
 }

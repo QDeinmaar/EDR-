@@ -75,6 +75,9 @@ void OnDetection(const DetectionEvent& evt) {
 }
 
 int main() {
+
+    NativeWrapper::Init();
+
     // Élever les privilèges
     if (!EnableDebugPrivilege()) {
         printf("[-] Failed to enable debug privilege\n");
@@ -118,7 +121,11 @@ int main() {
     printf("DEBUG: Arrived at getchar()\n");
     getchar();
     
-    etw->Stop();
+    if(etw)
+    {
+        etw->Stop();
+        delete etw;
+    }
     printf("[+] EDR stopped.\n");
     
     return 0;
