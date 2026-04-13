@@ -457,3 +457,41 @@ void NativeAPI::SetEventCallback(EventCallback callback)
 {
     m_callback = callback;
 }
+
+
+// Maybe this would Fix the ETW problem 
+
+NativeWrapper::RtlNtStatusToDosError_t NativeWrapper::pRtlNtStatusToDosError = nullptr;
+NativeWrapper::RtlInitUnicodeString_t  NativeWrapper::pRtlInitUnicodeString = nullptr;
+bool NativeWrapper::initialized = false;
+
+void NativeWrapper::Init()
+{
+    if (initialized) return;
+
+    HMODULE hNtdll = GetModuleHandleA("ntdll.dll");
+
+    if (!hNtdll) return;
+
+    pRtlNtStatusToDosError =
+        (RtlNtStatusToDosError_t)GetProcAddress(hNtdll, "RtlNtStatusToDosError");
+
+    pRtlInitUnicodeString =
+        (RtlInitUnicodeString_t)GetProcAddress(hNtdll, "RtlInitUnicodeString");
+
+    initialized = true;
+}
+
+ULONG NativeWrapper::NtStatusToDosError(NTSTATUS status)
+{
+    if (pRtlNtStatusToDosError)
+        return pRtlNtStatusToDosError(status);
+
+    return (ULONG)status;
+}
+
+void NativeWrapper::RtlInitUnicodeString(PUNICODE_STRING dst, PCWSTR src)
+{
+    if (pRtlInitUnicodeString)
+        pRtlInitUnicodeString(dst, src);
+}

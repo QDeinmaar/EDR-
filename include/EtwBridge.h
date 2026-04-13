@@ -22,7 +22,7 @@ private:
     static EventCallback s_userCallback;
     static std::atomic<bool> s_running;
     static TRACEHANDLE s_hTrace;
-    
+
     std::thread m_thread;
     bool m_running;
     static HANDLE s_hThread;

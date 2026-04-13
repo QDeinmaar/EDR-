@@ -104,3 +104,21 @@ class NativeAPI {
         bool m_initialized;
 
 };
+
+class NativeWrapper
+{
+public:
+    static void Init();
+
+    static ULONG NtStatusToDosError(NTSTATUS status);
+    static void RtlInitUnicodeString(PUNICODE_STRING dst, PCWSTR src);
+
+private:
+    typedef ULONG (NTAPI *RtlNtStatusToDosError_t)(NTSTATUS);
+    typedef void  (NTAPI *RtlInitUnicodeString_t)(PUNICODE_STRING, PCWSTR);
+
+    static RtlNtStatusToDosError_t pRtlNtStatusToDosError;
+    static RtlInitUnicodeString_t  pRtlInitUnicodeString;
+
+    static bool initialized;
+};

@@ -105,8 +105,8 @@ int main() {
     }
     printf("[+] Hooks installed successfully!\n");
     
-    EtwBridge etw;
-    if (!etw.Start(OnDetection)) {
+    EtwBridge* etw = new EtwBridge();
+    if (!etw->Start(OnDetection)){
         printf("[-] WARNING: ETW failed to start\n");
     } else {
         printf("[+] ETW monitoring started\n");
@@ -118,7 +118,7 @@ int main() {
     printf("DEBUG: Arrived at getchar()\n");
     getchar();
     
-    etw.Stop();
+    etw->Stop();
     printf("[+] EDR stopped.\n");
     
     return 0;

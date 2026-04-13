@@ -1,199 +1,204 @@
 #include "EtwBridge.h"
-#include <tlhelp32.h>
+#include <windows.h>
+#include <evntrace.h>
+#include <tdh.h>
 #include <stdio.h>
 #include <strsafe.h>
-#include <ntstatus.h>
-
-HANDLE EtwBridge::s_hThread = NULL;
-
-bool IsSystemProcess(DWORD pid)
-{
-    if (pid == 0 || pid == 4) return true; // Idle et System
-    
-    HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
-    if (snapshot == INVALID_HANDLE_VALUE) return false;
-    
-    PROCESSENTRY32 pe32;
-    pe32.dwSize = sizeof(PROCESSENTRY32);
-    
-    bool isSystem = false;
-    if (Process32First(snapshot, &pe32))
-    {
-        do
-        {
-            if (pe32.th32ProcessID == pid)
-            {
-                // Liste des processus système à ignorer
-                if (_stricmp(pe32.szExeFile, "svchost.exe") == 0 ||
-                    _stricmp(pe32.szExeFile, "services.exe") == 0 ||
-                    _stricmp(pe32.szExeFile, "lsass.exe") == 0 ||
-                    _stricmp(pe32.szExeFile, "winlogon.exe") == 0 ||
-                    _stricmp(pe32.szExeFile, "csrss.exe") == 0 ||
-                    _stricmp(pe32.szExeFile, "System") == 0)
-                {
-                    isSystem = true;
-                }
-                break;
-            }
-        } while (Process32Next(snapshot, &pe32));
-    }
-    CloseHandle(snapshot);
-    return isSystem;
-}
 
 #pragma comment(lib, "tdh.lib")
 
-// GUID Microsoft-Windows-Threat-Intelligence
-// {F4E1897C-BB5D-5668-F1D8-040F4D8DD344}
-static const GUID g_Provider = 
-    { 0x22fb2cd6, 0x0e7b, 0x422b, { 0xa0, 0xc7, 0x2f, 0xad, 0x1f, 0xd0, 0xe7, 0x16 } };
+// ✅ Provider correct (Kernel Process)
+static const GUID g_Provider =
+{ 0x22fb2cd6, 0x0e7b, 0x422b,{ 0xa0, 0xc7, 0x2f, 0xad, 0x1f, 0xd0, 0xe7, 0x16 } };
+
 // Variables statiques
-EventCallback EtwBridge::s_userCallback = nullptr;
-std::atomic<bool> EtwBridge::s_running{false};
 TRACEHANDLE EtwBridge::s_hTrace = 0;
+HANDLE EtwBridge::s_hThread = NULL;
+std::atomic<bool> EtwBridge::s_running{ false };
+EventCallback EtwBridge::s_userCallback = nullptr;
 
-// Variable externe pour lsass
-extern DWORD g_lsassPid;
+DWORD WINAPI EtwBridge::EtwThreadProcStatic(LPVOID param)
+{
+    printf("[ETW] STATIC THREAD ENTRY\n");
 
-DWORD WINAPI EtwBridge::EtwThreadProcStatic(LPVOID param) {
     EtwBridge* pThis = (EtwBridge*)param;
+
+    if (!pThis)
+    {
+        printf("[ETW] pThis is NULL!\n");
+        return 0;
+    }
+
     pThis->EtwThreadProc();
     return 0;
 }
 
-bool EtwBridge::Start(EventCallback callback) {
+bool EtwBridge::Start(EventCallback callback)
+{
     if (!callback) return false;
+
     s_userCallback = callback;
     s_running = true;
-    m_running = true;
-    
-    // Remplacer std::thread par CreateThread
+
     s_hThread = CreateThread(NULL, 0, EtwThreadProcStatic, this, 0, NULL);
+
     if (!s_hThread)
     {
-        printf("[ETW] Failed to create thread: %d\n", GetLastError());
+        printf("[ETW] Thread creation failed: %lu\n", GetLastError());
         return false;
     }
-    
+
+    printf("[ETW] Thread handle: %p\n", s_hThread);
+
+    // petit délai debug
+    Sleep(200);
+
     return true;
+
 }
 
-void EtwBridge::Stop() {
+void EtwBridge::Stop()
+{
     s_running = false;
-    m_running = false;
-    if (s_hTrace) {
+
+    if (s_hTrace)
+    {
         CloseTrace(s_hTrace);
         s_hTrace = 0;
     }
-    if (m_thread.joinable()) {
-        m_thread.join();
+
+    if (s_hThread)
+    {
+        WaitForSingleObject(s_hThread, INFINITE);
+        CloseHandle(s_hThread);
+        s_hThread = NULL;
     }
 }
 
-void EtwBridge::EtwThreadProc() {
-    TRACEHANDLE hSession = 0;
+void EtwBridge::EtwThreadProc()
+{
+
+    printf("[ETW] THREAD STARTED\n");
+
     ULONG status;
-    
-    BYTE buffer[sizeof(EVENT_TRACE_PROPERTIES) + 256] = {0};
+    TRACEHANDLE hSession = 0;
+
+    BYTE buffer[sizeof(EVENT_TRACE_PROPERTIES) + 256] = { 0 };
     EVENT_TRACE_PROPERTIES* pProps = (EVENT_TRACE_PROPERTIES*)buffer;
-    
+
     pProps->Wnode.BufferSize = sizeof(buffer);
+    pProps->Wnode.Flags = WNODE_FLAG_TRACED_GUID;
     pProps->Wnode.ClientContext = 1;
     pProps->LogFileMode = EVENT_TRACE_REAL_TIME_MODE;
     pProps->LoggerNameOffset = sizeof(EVENT_TRACE_PROPERTIES);
-    
-    char loggerName[] = "EDR-TI";
-    strcpy_s((char*)buffer + pProps->LoggerNameOffset, 256, loggerName);
-    
-    // Démarrer la session ETW
-    status = StartTraceA(&hSession, "EDR-TI", pProps);
-    if (status == ERROR_ALREADY_EXISTS) {
-        ControlTraceA(0, "EDR-TI", pProps, EVENT_TRACE_CONTROL_STOP);
-        status = StartTraceA(&hSession, "EDR-TI", pProps);
+
+    const char* sessionName = "EDRSession";
+    strcpy_s((char*)buffer + pProps->LoggerNameOffset, 256, sessionName);
+
+    printf("[ETW] Starting session...\n");
+
+    status = StartTraceA(&hSession, sessionName, pProps);
+
+    if (status == ERROR_ALREADY_EXISTS)
+    {
+        printf("[ETW] Session exists, stopping...\n");
+
+        ULONG stopStatus = ControlTraceA(0, sessionName, pProps, EVENT_TRACE_CONTROL_STOP);
+
+        if (stopStatus != ERROR_SUCCESS)
+        {
+            printf("[ETW] Failed to stop existing session: %lu\n", stopStatus);
+            return;
+        }
+
+        status = StartTraceA(&hSession, sessionName, pProps);
     }
-    
-    if (status != ERROR_SUCCESS) {
+
+    if (status != ERROR_SUCCESS)
+    {
         printf("[ETW] StartTrace failed: %lu\n", status);
         return;
     }
-    
-    // Activer le provider Threat Intelligence
-    EnableTraceEx2(hSession, &g_Provider, EVENT_CONTROL_CODE_ENABLE_PROVIDER,
-                   TRACE_LEVEL_INFORMATION, 0, 0xFFFFFFFFFFFFFFFFULL, 0, NULL);
-    
-    // Ouvrir la trace pour recevoir les événements
-    EVENT_TRACE_LOGFILEA log = {0};
-    char loggerNameTrace[] = "EDR-TI";
-    log.LoggerName = loggerNameTrace;
-    log.ProcessTraceMode = PROCESS_TRACE_MODE_REAL_TIME | PROCESS_TRACE_MODE_EVENT_RECORD;
-    log.EventRecordCallback = EventRecordCallback;
-    
-    s_hTrace = OpenTraceA(&log);
-    if (s_hTrace == INVALID_PROCESSTRACE_HANDLE) {
-        printf("[ETW] OpenTrace failed\n");
-        ControlTraceA(hSession, "EDR-TI", pProps, EVENT_TRACE_CONTROL_STOP);
+
+    printf("[ETW] Session started!\n");
+
+    // ✅ Enable provider
+    status = EnableTraceEx2(
+        hSession,
+        &g_Provider,
+        EVENT_CONTROL_CODE_ENABLE_PROVIDER,
+        TRACE_LEVEL_INFORMATION,
+        0,
+        0,
+        0,
+        NULL
+    );
+
+    if (status != ERROR_SUCCESS)
+    {
+        printf("[ETW] EnableTraceEx2 failed: %lu\n", status);
         return;
     }
-    
-    printf("[ETW] Monitor started successfully!\n");
-    ProcessTrace(&s_hTrace, 1, 0, 0);
-    
-    ControlTraceA(hSession, "EDR-TI", pProps, EVENT_TRACE_CONTROL_STOP);
+
+    printf("[ETW] Provider enabled!\n");
+
+    // ✅ Open trace
+    EVENT_TRACE_LOGFILEA log = { 0 };
+    log.LoggerName = (LPSTR)sessionName;
+    log.ProcessTraceMode = PROCESS_TRACE_MODE_REAL_TIME | PROCESS_TRACE_MODE_EVENT_RECORD;
+    log.EventRecordCallback = EventRecordCallback;
+
+    s_hTrace = OpenTraceA(&log);
+
+    if (s_hTrace == INVALID_PROCESSTRACE_HANDLE)
+    {
+        printf("[ETW] OpenTrace failed\n");
+        return;
+    }
+
+    printf("[ETW] Listening for events...\n");
+
+    ProcessTrace(&s_hTrace, 1, NULL, NULL);
+
+    ControlTraceA(hSession, sessionName, pProps, EVENT_TRACE_CONTROL_STOP);
 }
 
-void WINAPI EtwBridge::EventRecordCallback(PEVENT_RECORD pEvent) {
-    if (!IsEqualGUID(pEvent->EventHeader.ProviderId, g_Provider)) return;
-    if (!s_userCallback) return;
-    
-    const EVENT_HEADER& hdr = pEvent->EventHeader;
-    DWORD sourcePid = hdr.ProcessId;
-    DWORD targetPid = 0;
-    
-    // Extraction du PID cible depuis UserData
-    // La structure TI contient généralement [PID source, PID cible]
-    if (pEvent->UserDataLength >= 8) {
-        targetPid = *(DWORD*)((BYTE*)pEvent->UserData + 4);
-    }
-    
+void WINAPI EtwBridge::EventRecordCallback(PEVENT_RECORD pEvent)
+{
+    if (!IsEqualGUID(pEvent->EventHeader.ProviderId, g_Provider))
+        return;
+
+    if (!s_userCallback)
+        return;
+
+    DWORD pid = pEvent->EventHeader.ProcessId;
+
     DetectionEvent evt = {};
     evt.timestamp = GetTickCount64();
-    evt.sourcePid = sourcePid;
-    evt.targetPid = targetPid;
+    evt.sourcePid = pid;
     evt.fromEtw = true;
-    
-    // Mapping des Event ID vers ton operationType
-    switch(hdr.EventDescriptor.Id) {
-        case 1: // AllocateVirtualMemoryRemote
-            evt.operationType = 3;
-            evt.score = 30;
-            evt.pageProtection = PAGE_EXECUTE_READWRITE;
-            break;
-            
-        case 2: // WriteVirtualMemoryRemote
-            evt.operationType = 1;
-            evt.score = 20;
-            break;
-            
-        case 3: // ProtectVirtualMemoryRemote
-            evt.operationType = 4;
-            evt.score = 35;
-            break;
-            
-        case 5: // QueueUserAPC
-        case 6: // SetThreadContext
-            evt.operationType = 2;
-            evt.score = 45;
-            evt.createFlags = 0;
-            break;
-            
-        default:
-            return; // Ignorer les autres événements
+
+    // 🔥 Mapping simple (Kernel Process events)
+    switch (pEvent->EventHeader.EventDescriptor.Id)
+    {
+    case 1: // Process Start
+        evt.operationType = 10;
+        evt.score = 10;
+        break;
+
+    case 2: // Process Stop
+        evt.operationType = 11;
+        evt.score = 5;
+        break;
+
+    case 3: // Thread Start
+        evt.operationType = 2;
+        evt.score = 20;
+        break;
+
+    default:
+        return;
     }
-    
-    // Bonus LSASS
-    if (targetPid == g_lsassPid) {
-        evt.score += 80;
-    }
-    
+
     s_userCallback(evt);
 }
