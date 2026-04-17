@@ -98,13 +98,13 @@ int main() {
     
     nt.SetEventCallback(OnDetection);
     printf("[+] Detection callback registered\n");
-    
+
     if (!InstallHooks()) {
         printf("[-] ERROR: Failed to install hooks!\n");
         return 1;
     }
     printf("[+] Hooks installed successfully!\n");
-    
+
     printf("DEBUG: Creating EtwBridge\n");
     fflush(stdout);
     

@@ -1,4 +1,5 @@
 #include "EtwBridge.h"
+#include "MinHook.h"
 #include <windows.h>
 #include <evntrace.h>
 #include <tdh.h>
@@ -25,23 +26,25 @@ DWORD WINAPI EtwBridge::EtwThreadProcStatic(LPVOID param)
 
 bool EtwBridge::Start(EventCallback callback)
 {
-
-    printf("[ETW] Start() entered\n");
+    printf("[ETW] EtwBridge::Start() called\n");
     fflush(stdout);
-
+    
     if (!callback) return false;
-
     s_userCallback = callback;
     s_running = true;
-
-    s_hThread = CreateThread(NULL, 0, EtwThreadProcStatic, this, 0, NULL);
-
+    
+    s_hThread = (HANDLE)_beginthreadex(NULL, 0, [](void* param) -> unsigned int {
+        EtwBridge* pThis = (EtwBridge*)param;
+        pThis->EtwThreadProc();
+        return 0;
+    }, this, 0, NULL);
+    
     if (!s_hThread)
     {
-        printf("[ETW] Thread creation failed: %lu\n", GetLastError());
+        printf("[ETW] Thread creation failed: %d\n", errno);
         return false;
     }
-
+    
     printf("[ETW] Thread started\n");
     return true;
 }
