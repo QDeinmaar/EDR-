@@ -7,9 +7,12 @@
 
 #pragma comment(lib, "tdh.lib")
 
-// 🔥 Kernel Process Provider (stable)
+// Kernel Process Provider (stable)
 static const GUID KernelProcessGuid =
 { 0x3d6fa8d1, 0xfe05, 0x11d0,{ 0x9d, 0xda, 0x00, 0xc0, 0x4f, 0xd7, 0xba, 0x7c } };
+
+// GUID Microsoft-Windows-Threat-Intelligence
+static const GUID g_TI = {0xf4e1897c, 0xbb5d, 0x5668, {0xf1, 0xd8, 0x04, 0x0f, 0x4d, 0x8d, 0xd3, 0x44}};
 
 TRACEHANDLE EtwBridge::s_hTrace = 0;
 HANDLE EtwBridge::s_hThread = NULL;
@@ -21,6 +24,7 @@ DWORD WINAPI EtwBridge::EtwThreadProcStatic(LPVOID param)
     EtwBridge* pThis = (EtwBridge*)param;
     if (pThis)
         pThis->EtwThreadProc();
+        
     return 0;
 }
 
@@ -81,7 +85,6 @@ void EtwBridge::EtwThreadProc()
     pProps->Wnode.Flags = WNODE_FLAG_TRACED_GUID;
     pProps->Wnode.ClientContext = 1;
 
-    // 🔥 CRITIQUE
     pProps->LogFileMode = EVENT_TRACE_REAL_TIME_MODE;
     pProps->EnableFlags = EVENT_TRACE_FLAG_PROCESS | EVENT_TRACE_FLAG_THREAD;
 
@@ -90,7 +93,7 @@ void EtwBridge::EtwThreadProc()
     const char* sessionName = "EDRSession";
     strcpy_s((char*)buffer + pProps->LoggerNameOffset, 256, sessionName);
 
-    // 🔥 Start session
+    // Démarrer la session
     status = StartTraceA(&hSession, sessionName, pProps);
 
     if (status == ERROR_ALREADY_EXISTS)
@@ -107,7 +110,20 @@ void EtwBridge::EtwThreadProc()
 
     printf("[ETW] Session started\n");
 
-    // 🔥 Open trace
+    // Provider 1: Kernel Process (pour les créations de processus)
+    static const GUID KernelProcessGuid =
+        { 0x3d6fa8d1, 0xfe05, 0x11d0,{ 0x9d, 0xda, 0x00, 0xc0, 0x4f, 0xd7, 0xba, 0x7c } };
+    
+    EnableTraceEx2(hSession, &KernelProcessGuid, EVENT_CONTROL_CODE_ENABLE_PROVIDER,
+                   TRACE_LEVEL_INFORMATION, 0, 0, 0, NULL);
+
+    // Provider 2: Threat Intelligence (pour les allocations mémoire)
+    static const GUID g_TI = {0xf4e1897c, 0xbb5d, 0x5668, {0xf1, 0xd8, 0x04, 0x0f, 0x4d, 0x8d, 0xd3, 0x44}};
+    
+    EnableTraceEx2(hSession, &g_TI, EVENT_CONTROL_CODE_ENABLE_PROVIDER,
+                   TRACE_LEVEL_INFORMATION, 0, 0xFFFFFFFFFFFFFFFFULL, 0, NULL);
+
+    // Ouvrir la trace
     EVENT_TRACE_LOGFILEA log = {};
     log.LoggerName = (LPSTR)sessionName;
     log.ProcessTraceMode = PROCESS_TRACE_MODE_REAL_TIME | PROCESS_TRACE_MODE_EVENT_RECORD;
@@ -118,6 +134,7 @@ void EtwBridge::EtwThreadProc()
     if (s_hTrace == INVALID_PROCESSTRACE_HANDLE)
     {
         printf("[ETW] OpenTrace failed\n");
+        ControlTraceA(hSession, sessionName, pProps, EVENT_TRACE_CONTROL_STOP);
         return;
     }
 
@@ -125,7 +142,6 @@ void EtwBridge::EtwThreadProc()
 
     TRACEHANDLE handles[] = { s_hTrace };
 
-    // 🔥 LOOP contrôlée
     while (s_running)
     {
         ProcessTrace(handles, 1, NULL, NULL);
@@ -133,41 +149,66 @@ void EtwBridge::EtwThreadProc()
     }
 
     ControlTraceA(hSession, sessionName, pProps, EVENT_TRACE_CONTROL_STOP);
+    printf("[ETW] Thread stopped\n");
 }
 
 void WINAPI EtwBridge::EventRecordCallback(PEVENT_RECORD pEvent)
 {
+     printf("[ETW] RAW EVENT: Provider=%08x-%04x-%04x\n",
+           pEvent->EventHeader.ProviderId.Data1,
+           pEvent->EventHeader.ProviderId.Data2,
+           pEvent->EventHeader.ProviderId.Data3);
+    fflush(stdout);
+
     if (!s_userCallback)
         return;
 
     const EVENT_HEADER& hdr = pEvent->EventHeader;
+    
+    // Ne traiter que les événements Threat-Intelligence
+    if (!IsEqualGUID(pEvent->EventHeader.ProviderId, g_TI))
+        return;
 
-    printf("[ETW] PID:%lu Opcode:%u ID:%u\n",
-        hdr.ProcessId,
-        hdr.EventDescriptor.Opcode,
-        hdr.EventDescriptor.Id);
+    printf("[ETW] Threat-Intelligence Event: PID=%lu, Id=%u\n", 
+           hdr.ProcessId, hdr.EventDescriptor.Id);
 
     DetectionEvent evt = {};
     evt.timestamp = GetTickCount64();
     evt.sourcePid = hdr.ProcessId;
     evt.fromEtw = true;
 
-    // 🔥 Mapping simple fiable
-    switch (hdr.EventDescriptor.Opcode)
+    // Mapping des Event IDs Threat-Intelligence
+    switch (hdr.EventDescriptor.Id)
     {
-    case 1: // start
-        evt.operationType = 10;
-        evt.score = 10;
+    case 1: // AllocateVirtualMemoryRemote
+        evt.operationType = 3;  // Allocate
+        evt.score = 30;
+        evt.pageProtection = PAGE_EXECUTE_READWRITE;
+        printf("[ETW] Remote memory allocation detected!\n");
         break;
-
-    case 2: // stop
-        evt.operationType = 11;
-        evt.score = 5;
+        
+    case 2: // WriteVirtualMemoryRemote
+        evt.operationType = 1;  // Write
+        evt.score = 20;
+        printf("[ETW] Remote memory write detected!\n");
         break;
-
+        
+    case 3: // ProtectVirtualMemoryRemote
+        evt.operationType = 4;  // Protect
+        evt.score = 35;
+        printf("[ETW] Remote memory protection change detected!\n");
+        break;
+        
+    case 5: // QueueUserAPC
+    case 6: // SetThreadContext
+        evt.operationType = 2;  // Thread
+        evt.score = 45;
+        printf("[ETW] Remote thread/APC detected!\n");
+        break;
+        
     default:
         return;
     }
-
+    
     s_userCallback(evt);
 }

@@ -98,33 +98,26 @@ int main() {
     
     nt.SetEventCallback(OnDetection);
     printf("[+] Detection callback registered\n");
-
-    if (!InstallHooks()) {
-        printf("[-] ERROR: Failed to install hooks!\n");
-        return 1;
-    }
-    printf("[+] Hooks installed successfully!\n");
-
-    printf("DEBUG: Creating EtwBridge\n");
-    fflush(stdout);
+    
+    // ============================================
+    // TEST 1 : ETW AVANT les hooks
+    // ============================================
+    printf("\n=== Starting ETW first ===\n");
     
     EtwBridge etw;
-    
-    printf("DEBUG: Calling etw.Start()\n");
-    fflush(stdout);
-    
-    bool etwStarted = etw.Start(OnDetection);
-    printf("DEBUG: etw.Start() returned: %d\n", etwStarted);
-    fflush(stdout);
-    
-    if (!etwStarted) {
+    if (!etw.Start(OnDetection)) {
         printf("[-] WARNING: ETW failed to start\n");
     } else {
         printf("[+] ETW monitoring started\n");
     }
     
-    printf("DEBUG: After ETW Start\n");
-    fflush(stdout);
+    // Ensuite les hooks
+    printf("\n=== Installing hooks ===\n");
+    if (!InstallHooks()) {
+        printf("[-] ERROR: Failed to install hooks!\n");
+        return 1;
+    }
+    printf("[+] Hooks installed successfully!\n");
     
     printf("\n[+] EDR is RUNNING and protecting the system...\n");
     printf("[+] Press Enter to stop.\n\n");
@@ -136,3 +129,4 @@ int main() {
     
     return 0;
 }
+    
