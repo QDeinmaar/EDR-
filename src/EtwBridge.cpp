@@ -3,14 +3,13 @@
 #include <evntrace.h>
 #include <tdh.h>
 #include <stdio.h>
-#include <strsafe.h>
 
 #pragma comment(lib, "tdh.lib")
 
-static const GUID g_Provider =
-{ 0x22fb2cd6, 0x0e7b, 0x422b, { 0xa0, 0xc7, 0x2f, 0xad, 0x1f, 0xd0, 0xe7, 0x16 } };
+// 🔥 Kernel Process Provider (stable)
+static const GUID KernelProcessGuid =
+{ 0x3d6fa8d1, 0xfe05, 0x11d0,{ 0x9d, 0xda, 0x00, 0xc0, 0x4f, 0xd7, 0xba, 0x7c } };
 
-// Variables statiques
 TRACEHANDLE EtwBridge::s_hTrace = 0;
 HANDLE EtwBridge::s_hThread = NULL;
 std::atomic<bool> EtwBridge::s_running{ false };
@@ -18,22 +17,18 @@ EventCallback EtwBridge::s_userCallback = nullptr;
 
 DWORD WINAPI EtwBridge::EtwThreadProcStatic(LPVOID param)
 {
-    printf("[ETW] STATIC THREAD ENTRY\n");
-
     EtwBridge* pThis = (EtwBridge*)param;
-
-    if (!pThis)
-    {
-        printf("[ETW] pThis is NULL!\n");
-        return 0;
-    }
-
-    pThis->EtwThreadProc();
+    if (pThis)
+        pThis->EtwThreadProc();
     return 0;
 }
 
 bool EtwBridge::Start(EventCallback callback)
 {
+
+    printf("[ETW] Start() entered\n");
+    fflush(stdout);
+
     if (!callback) return false;
 
     s_userCallback = callback;
@@ -47,13 +42,8 @@ bool EtwBridge::Start(EventCallback callback)
         return false;
     }
 
-    printf("[ETW] Thread handle: %p\n", s_hThread);
-
-    // petit délai debug
-    Sleep(200);
-
+    printf("[ETW] Thread started\n");
     return true;
-
 }
 
 void EtwBridge::Stop()
@@ -62,7 +52,7 @@ void EtwBridge::Stop()
 
     if (s_hTrace)
     {
-        ControlTraceA(0, (LPSTR)"EDRSession", NULL, EVENT_TRACE_CONTROL_STOP);
+        CloseTrace(s_hTrace);
         s_hTrace = 0;
     }
 
@@ -72,47 +62,37 @@ void EtwBridge::Stop()
         CloseHandle(s_hThread);
         s_hThread = NULL;
     }
+
+    printf("[ETW] Stopped\n");
 }
 
 void EtwBridge::EtwThreadProc()
 {
-
-    printf("[ETW] THREAD STARTED\n");
-
     ULONG status;
     TRACEHANDLE hSession = 0;
 
-    BYTE buffer[sizeof(EVENT_TRACE_PROPERTIES) + 256] = { 0 };
+    BYTE buffer[sizeof(EVENT_TRACE_PROPERTIES) + 256] = {};
     EVENT_TRACE_PROPERTIES* pProps = (EVENT_TRACE_PROPERTIES*)buffer;
-    pProps->LogFileMode = EVENT_TRACE_REAL_TIME_MODE;
-    pProps->Wnode.ClientContext = 1;
-    pProps->EnableFlags = EVENT_TRACE_FLAG_PROCESS | EVENT_TRACE_FLAG_THREAD;
 
     pProps->Wnode.BufferSize = sizeof(buffer);
     pProps->Wnode.Flags = WNODE_FLAG_TRACED_GUID;
     pProps->Wnode.ClientContext = 1;
+
+    // 🔥 CRITIQUE
     pProps->LogFileMode = EVENT_TRACE_REAL_TIME_MODE;
+    pProps->EnableFlags = EVENT_TRACE_FLAG_PROCESS | EVENT_TRACE_FLAG_THREAD;
+
     pProps->LoggerNameOffset = sizeof(EVENT_TRACE_PROPERTIES);
 
     const char* sessionName = "EDRSession";
     strcpy_s((char*)buffer + pProps->LoggerNameOffset, 256, sessionName);
 
-    printf("[ETW] Starting session...\n");
-
+    // 🔥 Start session
     status = StartTraceA(&hSession, sessionName, pProps);
 
     if (status == ERROR_ALREADY_EXISTS)
     {
-        printf("[ETW] Session exists, stopping...\n");
-
-        ULONG stopStatus = ControlTraceA(0, sessionName, pProps, EVENT_TRACE_CONTROL_STOP);
-
-        if (stopStatus != ERROR_SUCCESS)
-        {
-            printf("[ETW] Failed to stop existing session: %lu\n", stopStatus);
-            return;
-        }
-
+        ControlTraceA(0, sessionName, pProps, EVENT_TRACE_CONTROL_STOP);
         status = StartTraceA(&hSession, sessionName, pProps);
     }
 
@@ -122,28 +102,10 @@ void EtwBridge::EtwThreadProc()
         return;
     }
 
-    printf("[ETW] Session started!\n");
+    printf("[ETW] Session started\n");
 
-    status = EnableTraceEx2(
-        hSession,
-        &g_Provider,
-        EVENT_CONTROL_CODE_ENABLE_PROVIDER,
-        TRACE_LEVEL_INFORMATION,
-        0,
-        0,
-        0,
-        NULL
-    );
-
-    if (status != ERROR_SUCCESS)
-    {
-        printf("[ETW] EnableTraceEx2 failed: %lu\n", status);
-        return;
-    }
-
-    printf("[ETW] Provider enabled!\n");
-
-    EVENT_TRACE_LOGFILEA log = { 0 };
+    // 🔥 Open trace
+    EVENT_TRACE_LOGFILEA log = {};
     log.LoggerName = (LPSTR)sessionName;
     log.ProcessTraceMode = PROCESS_TRACE_MODE_REAL_TIME | PROCESS_TRACE_MODE_EVENT_RECORD;
     log.EventRecordCallback = EventRecordCallback;
@@ -156,12 +118,15 @@ void EtwBridge::EtwThreadProc()
         return;
     }
 
-    printf("[ETW] Listening for events...\n");
+    printf("[ETW] Listening...\n");
 
     TRACEHANDLE handles[] = { s_hTrace };
+
+    // 🔥 LOOP contrôlée
     while (s_running)
     {
         ProcessTrace(handles, 1, NULL, NULL);
+        Sleep(10);
     }
 
     ControlTraceA(hSession, sessionName, pProps, EVENT_TRACE_CONTROL_STOP);
@@ -169,38 +134,37 @@ void EtwBridge::EtwThreadProc()
 
 void WINAPI EtwBridge::EventRecordCallback(PEVENT_RECORD pEvent)
 {
-    if (!IsEqualGUID(pEvent->EventHeader.ProviderId, g_Provider))
-        return;
-
     if (!s_userCallback)
         return;
 
-    DWORD pid = pEvent->EventHeader.ProcessId;
+    const EVENT_HEADER& hdr = pEvent->EventHeader;
+
+    printf("[ETW] PID:%lu Opcode:%u ID:%u\n",
+        hdr.ProcessId,
+        hdr.EventDescriptor.Opcode,
+        hdr.EventDescriptor.Id);
 
     DetectionEvent evt = {};
     evt.timestamp = GetTickCount64();
-    evt.sourcePid = pid;
+    evt.sourcePid = hdr.ProcessId;
     evt.fromEtw = true;
 
-    if (pEvent->EventHeader.EventDescriptor.Opcode == 1)
-{
-    evt.operationType = 10; // process start
-    evt.score = 10;
-}
-else if (pEvent->EventHeader.EventDescriptor.Opcode == 2)
-{
-    evt.operationType = 11; // process stop
-    evt.score = 5;
-}
-else if (pEvent->EventHeader.EventDescriptor.Opcode == 3)
-{
-    evt.operationType = 2; // thread start
-    evt.score = 20;
-}
-else
-{
-    return;
-}
+    // 🔥 Mapping simple fiable
+    switch (hdr.EventDescriptor.Opcode)
+    {
+    case 1: // start
+        evt.operationType = 10;
+        evt.score = 10;
+        break;
+
+    case 2: // stop
+        evt.operationType = 11;
+        evt.score = 5;
+        break;
+
+    default:
+        return;
+    }
 
     s_userCallback(evt);
 }

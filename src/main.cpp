@@ -75,9 +75,6 @@ void OnDetection(const DetectionEvent& evt) {
 }
 
 int main() {
-
-    NativeWrapper::Init();
-
     // Élever les privilèges
     if (!EnableDebugPrivilege()) {
         printf("[-] Failed to enable debug privilege\n");
@@ -108,24 +105,33 @@ int main() {
     }
     printf("[+] Hooks installed successfully!\n");
     
-    EtwBridge* etw = new EtwBridge();
-    if (!etw->Start(OnDetection)){
+    printf("DEBUG: Creating EtwBridge\n");
+    fflush(stdout);
+    
+    EtwBridge etw;
+    
+    printf("DEBUG: Calling etw.Start()\n");
+    fflush(stdout);
+    
+    bool etwStarted = etw.Start(OnDetection);
+    printf("DEBUG: etw.Start() returned: %d\n", etwStarted);
+    fflush(stdout);
+    
+    if (!etwStarted) {
         printf("[-] WARNING: ETW failed to start\n");
     } else {
         printf("[+] ETW monitoring started\n");
     }
     
+    printf("DEBUG: After ETW Start\n");
+    fflush(stdout);
+    
     printf("\n[+] EDR is RUNNING and protecting the system...\n");
     printf("[+] Press Enter to stop.\n\n");
     
-    printf("DEBUG: Arrived at getchar()\n");
     getchar();
     
-    if(etw)
-    {
-        etw->Stop();
-        delete etw;
-    }
+    etw.Stop();
     printf("[+] EDR stopped.\n");
     
     return 0;
