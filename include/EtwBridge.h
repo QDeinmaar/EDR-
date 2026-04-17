@@ -1,3 +1,5 @@
+/*
+
 #pragma once
 #include "DetectionEvents.h"
 #include <windows.h>
@@ -28,3 +30,5 @@ private:
     static HANDLE s_hThread;
 
 };
+
+*/

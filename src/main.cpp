@@ -1,5 +1,4 @@
 #include "DetectionEvents.h"
-#include "EtwBridge.h"
 #include "NativeAPI.h"
 #include "Hooks.h"
 #include <stdio.h>
@@ -7,29 +6,6 @@
 #include <tlhelp32.h>
 
 DWORD g_lsassPid = 0;
-
-// Élever les privilèges pour ETW
-bool EnableDebugPrivilege() {
-    HANDLE hToken;
-    TOKEN_PRIVILEGES tp;
-    LUID luid;
-    
-    if (!OpenProcessToken(GetCurrentProcess(), TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY, &hToken))
-        return false;
-    
-    if (!LookupPrivilegeValue(NULL, SE_DEBUG_NAME, &luid)) {
-        CloseHandle(hToken);
-        return false;
-    }
-    
-    tp.PrivilegeCount = 1;
-    tp.Privileges[0].Luid = luid;
-    tp.Privileges[0].Attributes = SE_PRIVILEGE_ENABLED;
-    
-    bool success = AdjustTokenPrivileges(hToken, FALSE, &tp, sizeof(tp), NULL, NULL);
-    CloseHandle(hToken);
-    return success && GetLastError() == ERROR_SUCCESS;
-}
 
 // Find lsass.exe PID
 DWORD FindLsassPid()
@@ -58,9 +34,8 @@ DWORD FindLsassPid()
 void OnDetection(const DetectionEvent& evt) {
     int finalScore = evt.score;
     
-    printf("[DETECT] PID %d -> %d | Op:%d | Score:%d | %s\n",
-           evt.sourcePid, evt.targetPid, evt.operationType, 
-           finalScore, evt.fromEtw ? "ETW" : "HOOK");
+    printf("[DETECT] PID %d -> %d | Op:%d | Score:%d\n",
+           evt.sourcePid, evt.targetPid, evt.operationType, finalScore);
     
     if (finalScore >= 70) {
         if (evt.sourcePid != 0 && evt.sourcePid != GetCurrentProcessId()) {
@@ -75,13 +50,6 @@ void OnDetection(const DetectionEvent& evt) {
 }
 
 int main() {
-    // Élever les privilèges
-    if (!EnableDebugPrivilege()) {
-        printf("[-] Failed to enable debug privilege\n");
-    } else {
-        printf("[+] Debug privilege enabled\n");
-    }
-    
     printf("========================================\n");
     printf("       EDR - Endpoint Detection Response\n");
     printf("========================================\n\n");
@@ -99,20 +67,6 @@ int main() {
     nt.SetEventCallback(OnDetection);
     printf("[+] Detection callback registered\n");
     
-    // ============================================
-    // TEST 1 : ETW AVANT les hooks
-    // ============================================
-    printf("\n=== Starting ETW first ===\n");
-    
-    EtwBridge etw;
-    if (!etw.Start(OnDetection)) {
-        printf("[-] WARNING: ETW failed to start\n");
-    } else {
-        printf("[+] ETW monitoring started\n");
-    }
-    
-    // Ensuite les hooks
-    printf("\n=== Installing hooks ===\n");
     if (!InstallHooks()) {
         printf("[-] ERROR: Failed to install hooks!\n");
         return 1;
@@ -123,8 +77,6 @@ int main() {
     printf("[+] Press Enter to stop.\n\n");
     
     getchar();
-    
-    etw.Stop();
     printf("[+] EDR stopped.\n");
     
     return 0;

@@ -1,11 +1,18 @@
+/*
 #include "EtwBridge.h"
 #include "MinHook.h"
 #include <windows.h>
 #include <evntrace.h>
 #include <tdh.h>
 #include <stdio.h>
+#include <evntrace.h>
 
 #pragma comment(lib, "tdh.lib")
+
+
+static const GUID KERNEL_TRACE_CONTROL_GUID =
+{ 0x9e814aad, 0x3204, 0x11d2,{ 0x9a, 0x82, 0x00, 0x60, 0x08, 0xa8, 0x69, 0x39 } };
+
 
 // Kernel Process Provider (stable)
 static const GUID KernelProcessGuid =
@@ -81,19 +88,23 @@ void EtwBridge::EtwThreadProc()
     BYTE buffer[sizeof(EVENT_TRACE_PROPERTIES) + 256] = {};
     EVENT_TRACE_PROPERTIES* pProps = (EVENT_TRACE_PROPERTIES*)buffer;
 
+    // =========================
+    // SESSION CONFIG
+    // =========================
     pProps->Wnode.BufferSize = sizeof(buffer);
     pProps->Wnode.Flags = WNODE_FLAG_TRACED_GUID;
     pProps->Wnode.ClientContext = 1;
 
     pProps->LogFileMode = EVENT_TRACE_REAL_TIME_MODE;
-    pProps->EnableFlags = EVENT_TRACE_FLAG_PROCESS | EVENT_TRACE_FLAG_THREAD;
 
     pProps->LoggerNameOffset = sizeof(EVENT_TRACE_PROPERTIES);
 
-    const char* sessionName = "EDRSession";
+    const char* sessionName = "NT Kernel Logger";
     strcpy_s((char*)buffer + pProps->LoggerNameOffset, 256, sessionName);
 
-    // Démarrer la session
+    // =========================
+    // START SESSION
+    // =========================
     status = StartTraceA(&hSession, sessionName, pProps);
 
     if (status == ERROR_ALREADY_EXISTS)
@@ -110,23 +121,31 @@ void EtwBridge::EtwThreadProc()
 
     printf("[ETW] Session started\n");
 
-    // Provider 1: Kernel Process (pour les créations de processus)
-    static const GUID KernelProcessGuid =
-        { 0x3d6fa8d1, 0xfe05, 0x11d0,{ 0x9d, 0xda, 0x00, 0xc0, 0x4f, 0xd7, 0xba, 0x7c } };
-    
-    EnableTraceEx2(hSession, &KernelProcessGuid, EVENT_CONTROL_CODE_ENABLE_PROVIDER,
-                   TRACE_LEVEL_INFORMATION, 0, 0, 0, NULL);
+    // =========================
+    // ENABLE KERNEL EVENTS
+    // =========================
+   EnableTraceEx2(
+    hSession,
+    &KERNEL_TRACE_CONTROL_GUID,
+    EVENT_CONTROL_CODE_ENABLE_PROVIDER,
+    TRACE_LEVEL_INFORMATION,
+    0,
+    EVENT_TRACE_FLAG_PROCESS |
+    EVENT_TRACE_FLAG_THREAD |
+    EVENT_TRACE_FLAG_IMAGE_LOAD,
+    0,
+    NULL
+);
 
-    // Provider 2: Threat Intelligence (pour les allocations mémoire)
-    static const GUID g_TI = {0xf4e1897c, 0xbb5d, 0x5668, {0xf1, 0xd8, 0x04, 0x0f, 0x4d, 0x8d, 0xd3, 0x44}};
-    
-    EnableTraceEx2(hSession, &g_TI, EVENT_CONTROL_CODE_ENABLE_PROVIDER,
-                   TRACE_LEVEL_INFORMATION, 0, 0xFFFFFFFFFFFFFFFFULL, 0, NULL);
-
-    // Ouvrir la trace
+    // =========================
+    // OPEN TRACE
+    // =========================
     EVENT_TRACE_LOGFILEA log = {};
     log.LoggerName = (LPSTR)sessionName;
-    log.ProcessTraceMode = PROCESS_TRACE_MODE_REAL_TIME | PROCESS_TRACE_MODE_EVENT_RECORD;
+    log.ProcessTraceMode =
+        PROCESS_TRACE_MODE_REAL_TIME |
+        PROCESS_TRACE_MODE_EVENT_RECORD;
+
     log.EventRecordCallback = EventRecordCallback;
 
     s_hTrace = OpenTraceA(&log);
@@ -139,21 +158,30 @@ void EtwBridge::EtwThreadProc()
     }
 
     printf("[ETW] Listening...\n");
+    fflush(stdout);
 
+    // =========================
+    // PROCESS EVENTS (BLOCKING)
+    // =========================
     TRACEHANDLE handles[] = { s_hTrace };
 
-    while (s_running)
-    {
-        ProcessTrace(handles, 1, NULL, NULL);
-        Sleep(10);
-    }
+    ProcessTrace(handles, 1, NULL, NULL);
 
+    // =========================
+    // CLEAN EXIT
+    // =========================
     ControlTraceA(hSession, sessionName, pProps, EVENT_TRACE_CONTROL_STOP);
     printf("[ETW] Thread stopped\n");
 }
 
 void WINAPI EtwBridge::EventRecordCallback(PEVENT_RECORD pEvent)
 {
+    printf("[ETW RAW] PID=%lu EVENT=%u\n",
+    pEvent->EventHeader.ProcessId,
+    pEvent->EventHeader.EventDescriptor.Id);
+
+    fflush(stdout);
+
      printf("[ETW] RAW EVENT: Provider=%08x-%04x-%04x\n",
            pEvent->EventHeader.ProviderId.Data1,
            pEvent->EventHeader.ProviderId.Data2,
@@ -212,3 +240,5 @@ void WINAPI EtwBridge::EventRecordCallback(PEVENT_RECORD pEvent)
     
     s_userCallback(evt);
 }
+    
+*/
