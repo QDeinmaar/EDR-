@@ -245,7 +245,7 @@ NTSTATUS NTAPI HookNtAllocateVirtualMemory
         if(callback) callback(event);
 
         // We Block Based on  the Score !!
-        if(score >= 70)
+        if(score >= 50)
     {
         printf("EDR BLOCKED: RWX allocation (score=%d)\n", score);
         return STATUS_ACCESS_DENIED;
