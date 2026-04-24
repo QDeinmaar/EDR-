@@ -5,23 +5,20 @@
 #include <windows.h>
 #include <tlhelp32.h>
 
+// Variable globale pour le scoring (sera utilisée par Hooks.cpp via 'extern')
 DWORD g_lsassPid = 0;
 
-// Find lsass.exe PID
-DWORD FindLsassPid()
-{
+// Fonction de recherche du processus LSASS
+DWORD FindLsassPid() {
     HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
     if (snapshot == INVALID_HANDLE_VALUE) return 0;
     
     PROCESSENTRY32 pe32;
     pe32.dwSize = sizeof(PROCESSENTRY32);
     
-    if (Process32First(snapshot, &pe32))
-    {
-        do
-        {
-            if (_stricmp(pe32.szExeFile, "lsass.exe") == 0)
-            {
+    if (Process32First(snapshot, &pe32)) {
+        do {
+            if (_stricmp(pe32.szExeFile, "lsass.exe") == 0) {
                 CloseHandle(snapshot);
                 return pe32.th32ProcessID;
             }
@@ -31,19 +28,18 @@ DWORD FindLsassPid()
     return 0;
 }
 
+// Fonction de réponse : ce qui se passe quand l'EDR détecte une menace
 void OnDetection(const DetectionEvent& evt) {
-    int finalScore = evt.score;
-    
-    printf("[DETECT] PID %d -> %d | Op:%d | Score:%d\n",
-           evt.sourcePid, evt.targetPid, evt.operationType, finalScore);
-    
-    if (finalScore >= 70) {
-        if (evt.sourcePid != 0 && evt.sourcePid != GetCurrentProcessId()) {
+    printf("\n[ALERT] PID %lu -> %lu | Op:%d | Score:%d\n",
+           evt.sourcePid, evt.targetPid, evt.operationType, evt.score);
+
+    if (evt.score >= 70) {
+        if (evt.sourcePid != GetCurrentProcessId() && evt.sourcePid != 0) {
             HANDLE h = OpenProcess(PROCESS_TERMINATE, FALSE, evt.sourcePid);
             if (h) {
                 TerminateProcess(h, 1);
                 CloseHandle(h);
-                printf("[KILL] Terminated PID %d\n", evt.sourcePid);
+                printf("[KILL] Processus %lu neutralisé.\n", evt.sourcePid);
             }
         }
     }
@@ -51,34 +47,54 @@ void OnDetection(const DetectionEvent& evt) {
 
 int main() {
     printf("========================================\n");
-    printf("       EDR - Endpoint Detection Response\n");
+    printf("       EDR - ACTIVE MONITORING          \n");
     printf("========================================\n\n");
-    
+
+    // 1. Identification de LSASS
     g_lsassPid = FindLsassPid();
     printf("[+] lsass.exe PID: %lu\n", g_lsassPid);
-    
+
+    // 2. Initialisation NativeAPI
     NativeAPI& nt = NativeAPI::Instance();
     if (!nt.IsInitialized()) {
-        printf("[-] ERROR: NativeAPI failed to initialize!\n");
+        printf("[-] ERROR: NativeAPI failed!\n");
         return 1;
     }
-    printf("[+] NativeAPI initialized successfully!\n");
-    
+
+    // 3. Configuration du Callback
     nt.SetEventCallback(OnDetection);
-    printf("[+] Detection callback registered\n");
-    
+    printf("[+] Callback enregistré.\n");
+
+    // 4. Pose des Hooks
     if (!InstallHooks()) {
-        printf("[-] ERROR: Failed to install hooks!\n");
+        printf("[-] ERROR: Hooking failed!\n");
         return 1;
     }
-    printf("[+] Hooks installed successfully!\n");
+    printf("[+] Hooks installés.\n");
+
+    // --- SECTION TEST ---
+    printf("\n[*] TEST D'AUTO-DETECTION : Tentative d'allocation RWX...\n");
     
-    printf("\n[+] EDR is RUNNING and protecting the system...\n");
-    printf("[+] Press Enter to stop.\n\n");
+    PVOID baseAddr = nullptr;
+    SIZE_T size = 4096;
     
+    // Appel du wrapper (5 arguments comme défini dans ton NativeWrapper.cpp)
+    NTSTATUS status = nt.AllocateVirtualMemory(
+        GetCurrentProcess(), 
+        &baseAddr, 
+        size,           
+        MEM_COMMIT | MEM_RESERVE, 
+        PAGE_EXECUTE_READWRITE 
+    );
+
+    if (status == 0xC0000022) { 
+        printf("[SUCCESS] L'EDR a BLOQUÉ l'allocation suspecte.\n");
+    } else {
+        printf("[!] Retour : 0x%lx\n", status);
+    }
+
+    printf("\n[+] EDR en cours... Appuyez sur Entrée pour quitter.\n");
     getchar();
-    printf("[+] EDR stopped.\n");
-    
+
     return 0;
-}
-    
+} 

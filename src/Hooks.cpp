@@ -81,7 +81,7 @@ NTSTATUS NTAPI HookNtWriteVirtualMemory
 
          // BLOCK BASED ON THE SCORE 
 
-        if(score >= 40)
+        if(score >= 70)
         {
 
         printf("EDR BLOCKED: Write operation (score=%d)\n", score);
@@ -165,7 +165,7 @@ NTSTATUS NTAPI HookNtCreateThreadEx
         
     // Block Based on the Score
 
-    if(score >= 40)
+    if(score >= 70)
     {
         printf("EDR BLOCKED: Thread creation (score=%d)\n", score);
         return STATUS_ACCESS_DENIED;
@@ -242,7 +242,7 @@ NTSTATUS NTAPI HookNtAllocateVirtualMemory
         if(callback) callback(event);
 
         // We Block Based on  the Score !!
-        if(score >= 40)
+        if(score >= 70)
     {
         printf("EDR BLOCKED: RWX allocation (score=%d)\n", score);
         return STATUS_ACCESS_DENIED;
@@ -259,6 +259,7 @@ NTSTATUS NTAPI HookNtAllocateVirtualMemory
         PageProtection
     );
 
+    g_inHookAlloc = false; // i forgot this one :)
     return status;
 }
 /*
@@ -379,7 +380,7 @@ NTSTATUS NTAPI HookNtReadVirtualMemory(
 */
 
 // ===================================
-// I Addes this ones to try to fix the problem in Proect and Read
+// I Addes this ones to try to fix the problem in Protect and Read
 // ===================================
 
 BOOL WINAPI HookReadProcessMemory(
@@ -466,114 +467,53 @@ BOOL WINAPI HookVirtualProtectEx(
 
 bool InstallHooks()
 {
-
+    // 1. Initialisation de MinHook
     if(MH_Initialize() != MH_OK)
     {
-        printf("EDR failed to Initialize MinHook !\n");
+        LogEDR("[EDR] failed to Initialize MinHook !");
         return false;
     }
 
-    // Original Nt
-
-    OriginalNtWriteVirtualMemory = g_NtWriteVirtualMemory;
-    OriginalNtAllocateVirtualMemory = g_NtAllocateVirtualMemory;
-    OriginalNtCreateThreadEx = g_NtCreateThreadEx;
-    
-    // Load Kernel32 (New Hooks)
-
+    // 2. Récupération des adresses (Kernel32)
     HMODULE hKernel32 = GetModuleHandleA("kernel32.dll");
-
-    if (!hKernel32)
-{
-    printf("Failed to get kernel32.dll\n");
-    return false;
-}
+    if (!hKernel32) {
+        LogEDR("[EDR] Failed to get kernel32.dll");
+        return false;
+    }
 
     OriginalReadProcessMemory = (pReadProcessMemory)GetProcAddress(hKernel32, "ReadProcessMemory");
     OriginalVirtualProtectEx = (pVirtualProtectEx)GetProcAddress(hKernel32, "VirtualProtectEx");
 
-    if (!OriginalReadProcessMemory || !OriginalVirtualProtectEx)
-    {
-        printf("Kernel32 load failed\n");
-        return false;
-    }
-
-    // Hook NtWriteVirtualMemory
+    // 3. Création des Hooks
+    // IMPORTANT : On passe l'adresse de notre pointeur Original... en 3ème argument (au lieu de NULL)
+    // pour que MinHook le remplisse avec l'adresse du TRAMPOLINE.
     
-    if(MH_CreateHook((LPVOID)OriginalNtWriteVirtualMemory, (LPVOID)&HookNtWriteVirtualMemory, NULL) != MH_OK)
+    if(MH_CreateHook((LPVOID)g_NtWriteVirtualMemory, (LPVOID)HookNtWriteVirtualMemory, (LPVOID*)&OriginalNtWriteVirtualMemory) != MH_OK)
     {
-        printf("EDR failed to Hook: NtWriteVirtualMemory !\n");
-        return false;
-    }
-    printf("InstallHooks: Hook NtWriteVirtualMemory OK\n");
-    fflush(stdout);
-
-    // Hook NtCreateThreadEx
-    if(MH_CreateHook((LPVOID)OriginalNtCreateThreadEx, (LPVOID)&HookNtCreateThreadEx, NULL) != MH_OK)
-    {
-        printf("EDR failed to Hook : NtCreateThreadEx !\n");
-        return false;
-    }
-    printf("InstallHooks: Hook NtCreateThreadEx OK\n");
-    fflush(stdout);
-
-    // Hook NtAllocateVirtualMemory
-    if(MH_CreateHook((LPVOID)OriginalNtAllocateVirtualMemory, (LPVOID)&HookNtAllocateVirtualMemory, NULL) != MH_OK)
-    {
-        printf("EDR failed to Hook : NtAllocateVirtualMemory !\n");
-        return false;
-    }
-    printf("InstallHooks: Hook NtAllocateVirtualMemory OK\n");
-    fflush(stdout);
-    printf("InstallHooks: OriginalNtAllocateVirtualMemory = %p\n", OriginalNtAllocateVirtualMemory);
-    fflush(stdout);
-
-    // =======
-    /*
-    if(MH_CreateHook((LPVOID)OriginalReadProcessMemory, (LPVOID)&HookReadProcessMemory, NULL) != MH_OK)
-    {
-        printf("EDR failed to Hook : ReadProcessMemory !\n");
+        LogEDR("[EDR] failed to Hook: NtWriteVirtualMemory");
         return false;
     }
 
-    if(MH_CreateHook((LPVOID)OriginalVirtualProtectEx, (LPVOID)&HookVirtualProtectEx, NULL) != MH_OK)
+    if(MH_CreateHook((LPVOID)g_NtCreateThreadEx, (LPVOID)HookNtCreateThreadEx, (LPVOID*)&OriginalNtCreateThreadEx) != MH_OK)
     {
-        printf("EDR failed to Hook : VirtualProtectEx !\n");
-        return false;
-    }
-*/
-    // Activation des hooks
-
-    if(MH_EnableHook((LPVOID)OriginalNtWriteVirtualMemory) != MH_OK)
-    {
-        printf("EDR failed to enable NtWriteVirtualMemory !\n");
+        LogEDR("[EDR] failed to Hook: NtCreateThreadEx");
         return false;
     }
 
-    if(MH_EnableHook((LPVOID)OriginalNtCreateThreadEx) != MH_OK)
+    if(MH_CreateHook((LPVOID)g_NtAllocateVirtualMemory, (LPVOID)HookNtAllocateVirtualMemory, (LPVOID*)&OriginalNtAllocateVirtualMemory) != MH_OK)
     {
-        printf("EDR failed to enable NtCreateThreadEx !\n");
+        LogEDR("[EDR] failed to Hook: NtAllocateVirtualMemory");
         return false;
     }
 
-    if(MH_EnableHook((LPVOID)OriginalNtAllocateVirtualMemory) != MH_OK)
+    // 4. Activation des hooks
+    // Utiliser MH_ALL_HOOKS est plus propre pour tout activer d'un coup
+    if(MH_EnableHook(MH_ALL_HOOKS) != MH_OK)
     {
-        printf("EDR failed to enable NtAllocateVirtualMemory !\n");
-        return false;
-    }
-/*
-    if(MH_EnableHook((LPVOID)OriginalReadProcessMemory) != MH_OK)
-    {
-        printf("EDR failed to enable ReadProcessMemory !\n");
+        LogEDR("[EDR] failed to enable all hooks !");
         return false;
     }
 
-    if(MH_EnableHook((LPVOID)OriginalVirtualProtectEx) != MH_OK)
-    {
-        printf("EDR failed to enable VirtualProtectMemory !\n");
-        return false;
-    }
-*/
-    printf("EDR: All the Hooks installed successfully !\n");
+    LogEDR("[EDR] All hooks installed successfully in PID %lu!", GetCurrentProcessId());
     return true;
 }
