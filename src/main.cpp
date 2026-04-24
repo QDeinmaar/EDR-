@@ -97,12 +97,13 @@ int main() {
     }
 
     nt.SetEventCallback(OnDetection);
-    printf("[+] Callback enregistre.\n");
+    printf("[+] Callback enregistré.\n");
 
     if (!InstallHooks()) {
         printf("[-] ERROR: Hooking failed!\n");
         return 1;
     }
+<<<<<<< HEAD
     printf("[+] Hooks installes.\n");
 
     // Lance le watcher d'injection
@@ -117,5 +118,33 @@ int main() {
         // printf("[*] EDR veille...\n");
     }
 
+=======
+    printf("[+] Hooks installés.\n");
+
+    // --- SECTION TEST ---
+    printf("\n[*] TEST D'AUTO-DETECTION : Tentative d'allocation RWX...\n");
+    
+    PVOID baseAddr = nullptr;
+    SIZE_T size = 4096;
+    
+    // Appel du wrapper (5 arguments comme défini dans ton NativeWrapper.cpp)
+    NTSTATUS status = nt.AllocateVirtualMemory(
+        GetCurrentProcess(), 
+        &baseAddr, 
+        size,           
+        MEM_COMMIT | MEM_RESERVE, 
+        PAGE_EXECUTE_READWRITE 
+    );
+
+    if (status == 0xC0000022) { 
+        printf("[SUCCESS] L'EDR a BLOQUÉ l'allocation suspecte.\n");
+    } else {
+        printf("[!] Retour : 0x%lx\n", status);
+    }
+
+    printf("\n[+] EDR en cours... Appuyez sur Entrée pour quitter.\n");
+    getchar();
+
+>>>>>>> parent of 055fed5 (EDR Allocate Working !)
     return 0;
 }
