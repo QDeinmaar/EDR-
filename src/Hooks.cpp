@@ -246,7 +246,7 @@ NTSTATUS NTAPI HookNtAllocateVirtualMemory
         if(callback) callback(event);
 
         // We Block Based on  the Score !!
-        if(score >= 50)
+        if(score >= 70)
     {
         printf("EDR BLOCKED: RWX allocation (score=%d)\n", score);
         g_inHookAlloc = false;
