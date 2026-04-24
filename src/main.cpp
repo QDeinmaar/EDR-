@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <windows.h>
 #include <tlhelp32.h>
+#include <ntstatus.h>
 
 DWORD g_lsassPid = 0;
 
@@ -97,80 +98,43 @@ int main() {
     }
 
     nt.SetEventCallback(OnDetection);
-    printf("[+] Callback enregistré.\n");
+    printf("[+] Callback enregistre.\n");
 
     if (!InstallHooks()) {
         printf("[-] ERROR: Hooking failed!\n");
         return 1;
     }
-<<<<<<< HEAD
-<<<<<<< HEAD
     printf("[+] Hooks installes.\n");
 
     // Lance le watcher d'injection
     CreateThread(NULL, 0, InjectionWatcher, NULL, 0, NULL);
     printf("[+] Watcher actif : tout nouveau Notepad sera protege.\n");
 
-    // ========== BOUCLE INFINIE ==========
+    // Petit test rapide (sur le processus courant, pas d'injection)
+    printf("\n[*] TEST RAPIDE (auto-allocation, pas bloquante normalement)...\n");
+    PVOID baseAddr = nullptr;
+    SIZE_T size = 4096;
+    NTSTATUS status = nt.AllocateVirtualMemory(
+        GetCurrentProcess(),
+        &baseAddr,
+        size,
+        MEM_COMMIT | MEM_RESERVE,
+        PAGE_EXECUTE_READWRITE
+    );
+    if (NT_SUCCESS(status)) {
+        printf("[INFO] Allocation locale reussie (normal, pas bloque).\n");
+        nt.CloseHandle(GetCurrentProcess());
+    } else if (status == STATUS_ACCESS_DENIED) {
+        printf("[INFO] Allocation locale BLOQUEE (score >= seuil).\n");
+    } else {
+        printf("[!] Retour : 0x%lx\n", status);
+    }
+
+    // Boucle infinie de surveillance
     printf("\n[+] EDR en attente d'attaques... (Ctrl+C pour quitter)\n");
     while (true) {
         Sleep(10000);
-        // Optionnel : message périodique
-        // printf("[*] EDR veille...\n");
     }
 
-=======
-    printf("[+] Hooks installés.\n");
-
-    // --- SECTION TEST ---
-    printf("\n[*] TEST D'AUTO-DETECTION : Tentative d'allocation RWX...\n");
-    
-    PVOID baseAddr = nullptr;
-    SIZE_T size = 4096;
-    
-    // Appel du wrapper (5 arguments comme défini dans ton NativeWrapper.cpp)
-    NTSTATUS status = nt.AllocateVirtualMemory(
-        GetCurrentProcess(), 
-        &baseAddr, 
-        size,           
-        MEM_COMMIT | MEM_RESERVE, 
-        PAGE_EXECUTE_READWRITE 
-    );
-
-    if (status == 0xC0000022) { 
-        printf("[SUCCESS] L'EDR a BLOQUÉ l'allocation suspecte.\n");
-    } else {
-        printf("[!] Retour : 0x%lx\n", status);
-    }
-
-=======
-    printf("[+] Hooks installés.\n");
-
-    // --- SECTION TEST ---
-    printf("\n[*] TEST D'AUTO-DETECTION : Tentative d'allocation RWX...\n");
-    
-    PVOID baseAddr = nullptr;
-    SIZE_T size = 4096;
-    
-    // Appel du wrapper (5 arguments comme défini dans ton NativeWrapper.cpp)
-    NTSTATUS status = nt.AllocateVirtualMemory(
-        GetCurrentProcess(), 
-        &baseAddr, 
-        size,           
-        MEM_COMMIT | MEM_RESERVE, 
-        PAGE_EXECUTE_READWRITE 
-    );
-
-    if (status == 0xC0000022) { 
-        printf("[SUCCESS] L'EDR a BLOQUÉ l'allocation suspecte.\n");
-    } else {
-        printf("[!] Retour : 0x%lx\n", status);
-    }
-
->>>>>>> parent of 055fed5 (EDR Allocate Working !)
-    printf("\n[+] EDR en cours... Appuyez sur Entrée pour quitter.\n");
-    getchar();
-
->>>>>>> parent of 055fed5 (EDR Allocate Working !)
     return 0;
 }
