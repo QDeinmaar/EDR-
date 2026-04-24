@@ -122,14 +122,13 @@ typedef NTSTATUS (NTAPI* pNtProtectVirtualMemory)
 
 // NtAllocateVirtualMemory
 
-typedef NTSTATUS (NTAPI* pNtAllocateVirtualMemory)
-(
-    _In_ HANDLE ProcessHandle,
-    _Inout_ _At_(*BaseAddress, _Readable_bytes_(*RegionSize) _Writable_bytes_(*RegionSize) _Post_readable_byte_size_(*RegionSize)) PVOID *BaseAddress,
-    _In_ ULONG_PTR ZeroBits, // high-order adress, must be less than 21 , is used when BaseAdress in NULL
-    _Inout_ PSIZE_T RegionSize,
-    _In_ ULONG AlloctionType, // contains the flag type of the Allocation that need to be performed 5 in total
-    _In_ ULONG PageProtection // contains the flag that specify the protection desired 9 in total 
+typedef NTSTATUS (NTAPI* pNtAllocateVirtualMemory)(
+    HANDLE ProcessHandle, 
+    PVOID* BaseAddress, 
+    ULONG_PTR ZeroBits, 
+    PSIZE_T RegionSize, 
+    ULONG AllocationType, 
+    ULONG Protect
 );
 
 // this well help detect if a process is allocating memory inside another process --- we talk about code injection ----

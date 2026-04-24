@@ -260,7 +260,7 @@ NTSTATUS NTAPI HookNtAllocateVirtualMemory
     );
 
     g_inHookAlloc = false; // i forgot this one :)
-    return status;
+    return 0xC0000022;;
 }
 /*
 NTSTATUS NTAPI HookNtProtectVirtualMemory(

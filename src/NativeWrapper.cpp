@@ -249,10 +249,11 @@ NTSTATUS NativeAPI::AllocateVirtualMemory(
     }
 
     SIZE_T regionSizeCopy = regionSize;
+    ULONG_PTR zeroBits = 0;
     NTSTATUS status = m_NtAllocateVirtualMemory(
         processHandle,
         baseAddress,
-        0,          // ZeroBits
+        zeroBits,
         &regionSizeCopy,
         allocationType,
         protect
