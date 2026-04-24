@@ -63,37 +63,53 @@ int main() {
 
     // 3. Configuration du Callback
     nt.SetEventCallback(OnDetection);
-    printf("[+] Callback enregistré.\n");
+    printf("[+] Callback enregistre.\n");
 
     // 4. Pose des Hooks
     if (!InstallHooks()) {
         printf("[-] ERROR: Hooking failed!\n");
         return 1;
     }
-    printf("[+] Hooks installés.\n");
+    printf("[+] Hooks installe.\n");
 
-    // --- SECTION TEST ---
-    printf("\n[*] TEST D'AUTO-DETECTION : Tentative d'allocation RWX...\n");
+// --- TEST D'INJECTION DISTANTE ---
+printf("\n[*] TEST D'INJECTION : Recherche de notepad.exe...\n");
+
+// Tu peux utiliser une fonction FindProcess ou entrer le PID manuellement depuis le gestionnaire des tâches
+DWORD targetPid; 
+printf("Entrez le PID de Notepad : ");
+scanf("%lu", &targetPid);
+
+// On ouvre un handle vers Notepad
+HANDLE hTarget = OpenProcess(PROCESS_ALL_ACCESS, FALSE, targetPid);
+
+if (hTarget) {
+    printf("[*] Tentative d'allocation RWX dans le processus %lu...\n", targetPid);
     
-    PVOID baseAddr = nullptr;
+    PVOID remoteAddr = nullptr;
     SIZE_T size = 4096;
-    
-    // Appel du wrapper (5 arguments comme défini dans ton NativeWrapper.cpp)
+
+    // Cet appel passera par ton Wrapper -> Ton Hook -> Et sera analysé
     NTSTATUS status = nt.AllocateVirtualMemory(
-        GetCurrentProcess(), 
-        &baseAddr, 
-        size,           
+        hTarget, 
+        &remoteAddr,  
+        size, 
         MEM_COMMIT | MEM_RESERVE, 
-        PAGE_EXECUTE_READWRITE 
+        PAGE_EXECUTE_READWRITE
     );
 
-    if (status == 0xC0000022) { 
-        printf("[SUCCESS] L'EDR a BLOQUÉ l'allocation suspecte.\n");
+    if (status == 0xC0000022) {
+        printf("\n[VICTOIRE] L'EDR a detecte et BLOQUE l'injection distante dans Notepad !\n");
     } else {
-        printf("[!] Retour : 0x%lx\n", status);
+        printf("\n[!] Echec du blocage. Retour : 0x%lx\n", status);
     }
 
-    printf("\n[+] EDR en cours... Appuyez sur Entrée pour quitter.\n");
+    CloseHandle(hTarget);
+} else {
+    printf("[-] Impossible d'ouvrir Notepad. Lance-le en admin ?\n");
+}
+
+    printf("\n[+] EDR en cours... Appuyez sur Entree pour quitter.\n");
     getchar();
 
     return 0;
