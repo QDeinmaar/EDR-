@@ -125,8 +125,8 @@ typedef NTSTATUS (NTAPI* pNtProtectVirtualMemory)
 typedef NTSTATUS (NTAPI* pNtAllocateVirtualMemory)(
     HANDLE ProcessHandle, 
     PVOID* BaseAddress, 
-    ULONG_PTR ZeroBits, 
     PSIZE_T RegionSize, 
+    ULONG_PTR ZeroBits, 
     ULONG AllocationType, 
     ULONG Protect
 );

@@ -199,7 +199,7 @@ NTSTATUS NTAPI HookNtAllocateVirtualMemory
 
     if(g_inHookAlloc)
     {
-        return OriginalNtAllocateVirtualMemory(ProcessHandle, BaseAddress, ZeroBits, RegionSize, AllocationType, PageProtection);
+        return OriginalNtAllocateVirtualMemory(ProcessHandle, BaseAddress, RegionSize, ZeroBits, AllocationType, PageProtection);
     }
     
     g_inHookAlloc = true;
@@ -212,16 +212,18 @@ NTSTATUS NTAPI HookNtAllocateVirtualMemory
     {
         // Appel direct sans logging ni blocage
         g_inHookAlloc = false;
-        return OriginalNtAllocateVirtualMemory(ProcessHandle, BaseAddress, ZeroBits, 
-                                                RegionSize, AllocationType, PageProtection);
+        return OriginalNtAllocateVirtualMemory(ProcessHandle, BaseAddress, RegionSize, 
+                                                ZeroBits, AllocationType, PageProtection);
     }
 
     // ===== Scoring System =====
 
     int score = 0;
-    
-    if(PageProtection == PAGE_EXECUTE_READWRITE) score += 30;  // RWX = shellcode
+
+    if(PageProtection == PAGE_EXECUTE_READWRITE /* || PageProtection == 0x4 || PageProtection == 0x40 */ ) score += 30;  // RWX = shellcode
+
     if(sourcePid != targetPid) score += 20; // Remote allocation
+
     if(AllocationType == MEM_COMMIT) score += 10;  // Real allocation
 
     // event 
@@ -243,7 +245,7 @@ NTSTATUS NTAPI HookNtAllocateVirtualMemory
         if(callback) callback(event);
 
         // We Block Based on  the Score !!
-        if(score >= 70)
+        if(score >= 50)
     {
         printf("EDR BLOCKED: RWX allocation (score=%d)\n", score);
         g_inHookAlloc = false;
@@ -258,7 +260,7 @@ NTSTATUS NTAPI HookNtAllocateVirtualMemory
     
     NTSTATUS status = OriginalNtAllocateVirtualMemory (
         ProcessHandle, BaseAddress,
-        ZeroBits, RegionSize, AllocationType,
+        RegionSize, ZeroBits, AllocationType,
         PageProtection
     );
 

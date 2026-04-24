@@ -4,10 +4,10 @@
 #include <stdio.h>
 #include <windows.h>
 #include <tlhelp32.h>
-#include <ntstatus.h>
 
 DWORD g_lsassPid = 0;
 
+// Recherche LSASS
 DWORD FindLsassPid() {
     HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
     if (snapshot == INVALID_HANDLE_VALUE) return 0;
@@ -27,25 +27,45 @@ DWORD FindLsassPid() {
     return 0;
 }
 
-DWORD FindProcessId(const char* processName) {
-    HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
-    if (snapshot == INVALID_HANDLE_VALUE) return 0;
+// Injection automatique dans un processus
+void InjectIntoProcess(DWORD pid, const char* dllPath) {
+    HANDLE hProcess = OpenProcess(PROCESS_CREATE_THREAD | PROCESS_VM_OPERATION | PROCESS_VM_WRITE, FALSE, pid);
+    if (!hProcess) return;
     
-    PROCESSENTRY32 pe32;
-    pe32.dwSize = sizeof(PROCESSENTRY32);
-    
-    if (Process32First(snapshot, &pe32)) {
-        do {
-            if (_stricmp(pe32.szExeFile, processName) == 0) {
-                CloseHandle(snapshot);
-                return pe32.th32ProcessID;
-            }
-        } while (Process32Next(snapshot, &pe32));
+    SIZE_T size = strlen(dllPath) + 1;
+    LPVOID remoteMem = VirtualAllocEx(hProcess, NULL, size, MEM_COMMIT, PAGE_READWRITE);
+    if (remoteMem) {
+        WriteProcessMemory(hProcess, remoteMem, dllPath, size, NULL);
+        CreateRemoteThread(hProcess, NULL, 0, (LPTHREAD_START_ROUTINE)LoadLibraryA, remoteMem, 0, NULL);
+        printf("[WATCHER] EDR.dll injectee dans PID %lu\n", pid);
     }
-    CloseHandle(snapshot);
+    CloseHandle(hProcess);
+}
+
+// Watcher : surveille les nouveaux notepad.exe
+DWORD WINAPI InjectionWatcher(LPVOID) {
+    char dllPath[MAX_PATH];
+    GetFullPathNameA("EDR.dll", MAX_PATH, dllPath, NULL);
+    
+    while (true) {
+        HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+        PROCESSENTRY32 pe;
+        pe.dwSize = sizeof(pe);
+        
+        if (Process32First(snapshot, &pe)) {
+            do {
+                if (_stricmp(pe.szExeFile, "notepad.exe") == 0) {
+                    InjectIntoProcess(pe.th32ProcessID, dllPath);
+                }
+            } while (Process32Next(snapshot, &pe));
+        }
+        CloseHandle(snapshot);
+        Sleep(3000);
+    }
     return 0;
 }
 
+// Callback de détection
 void OnDetection(const DetectionEvent& evt) {
     printf("\n[ALERT] PID %lu -> %lu | Op:%d | Score:%d\n",
            evt.sourcePid, evt.targetPid, evt.operationType, evt.score);
@@ -83,71 +103,19 @@ int main() {
         printf("[-] ERROR: Hooking failed!\n");
         return 1;
     }
-    printf("[+] Hooks installes.\n\n");
+    printf("[+] Hooks installes.\n");
 
-    // ========== ATTENDRE NOTEPAD.EXE ==========
-    printf("[*] En attente de notepad.exe...\n");
-    DWORD pid = 0;
-    while (pid == 0) {
-        pid = FindProcessId("notepad.exe");
-        Sleep(1000);
-    }
-    printf("[+] notepad.exe trouve (PID: %lu)\n", pid);
-
-    // ========== TEST COMPLET ==========
-    HANDLE hProcess = nt.OpenProcess(pid, PROCESS_ALL_ACCESS);
-    if (!hProcess) {
-        printf("[-] Impossible d'ouvrir le processus %lu\n", pid);
-        return 1;
-    }
-
-    printf("\n[*] TEST D'INJECTION COMPLET\n");
-
-    // 1. Allocation RWX
-    printf("\n[1] Allocation RWX...\n");
-    PVOID baseAddr = nullptr;
-    SIZE_T size = 4096;
-    NTSTATUS status = nt.AllocateVirtualMemory(
-        hProcess, &baseAddr, size,
-        MEM_COMMIT | MEM_RESERVE,
-        PAGE_EXECUTE_READWRITE
-    );
-    printf("    Retour : 0x%08lX %s\n", status,
-           status == STATUS_ACCESS_DENIED ? "(BLOQUE)" : "");
-
-    // 2. Écriture mémoire (seulement si allocation réussie)
-    if (NT_SUCCESS(status)) {
-        printf("\n[2] Ecriture dans la memoire allouee...\n");
-        unsigned char shellcode[] = {0x90, 0x90, 0xCC, 0x90};
-        SIZE_T written = 0;
-        status = nt.WriteVirtualMemory(
-            hProcess, baseAddr, shellcode,
-            sizeof(shellcode), &written
-        );
-        printf("    Retour : 0x%08lX %s\n", status,
-               status == STATUS_ACCESS_DENIED ? "(BLOQUE)" : "");
-    }
-
-    // 3. Création de thread (seulement si écriture réussie)
-    if (NT_SUCCESS(status) && baseAddr) {
-        printf("\n[3] Creation de thread distant...\n");
-        HANDLE hThread = nullptr;
-        status = nt.CreateThreadEx(
-            &hThread, THREAD_ALL_ACCESS, hProcess,
-            baseAddr, nullptr, 0
-        );
-        printf("    Retour : 0x%08lX %s\n", status,
-               status == STATUS_ACCESS_DENIED ? "(BLOQUE)" : "");
-        if (hThread) nt.CloseHandle(hThread);
-    }
-
-    nt.CloseHandle(hProcess);
+    // Lance le watcher d'injection
+    CreateThread(NULL, 0, InjectionWatcher, NULL, 0, NULL);
+    printf("[+] Watcher actif : tout nouveau Notepad sera protege.\n");
 
     // ========== BOUCLE INFINIE ==========
-    printf("\n[+] EDR reste actif. Appuyez sur Ctrl+C pour arreter.\n");
+    printf("\n[+] EDR en attente d'attaques... (Ctrl+C pour quitter)\n");
     while (true) {
         Sleep(10000);
+        // Optionnel : message périodique
+        // printf("[*] EDR veille...\n");
     }
 
     return 0;
-} 
+}
