@@ -197,10 +197,6 @@ NTSTATUS NTAPI HookNtAllocateVirtualMemory
     ULONG AllocationType, ULONG PageProtection) 
 {
 
-     printf("[DEBUG] ENTER HOOK: ProcessHandle = %p, BaseAddress=%p\n",
-           ProcessHandle, BaseAddress);
-    fflush(stdout);
-
     if(g_inHookAlloc)
     {
         return OriginalNtAllocateVirtualMemory(ProcessHandle, BaseAddress, ZeroBits, RegionSize, AllocationType, PageProtection);
@@ -215,6 +211,7 @@ NTSTATUS NTAPI HookNtAllocateVirtualMemory
     if (targetPid == 0 || targetPid == 4)
     {
         // Appel direct sans logging ni blocage
+        g_inHookAlloc = false;
         return OriginalNtAllocateVirtualMemory(ProcessHandle, BaseAddress, ZeroBits, 
                                                 RegionSize, AllocationType, PageProtection);
     }
@@ -254,6 +251,7 @@ NTSTATUS NTAPI HookNtAllocateVirtualMemory
     }
     else if(score >= 30)
     {
+        g_inHookAlloc = false;
         printf("EDR ALERT: RWX allocation (score=%d)\n", score);
     }
 
